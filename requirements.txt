@@ -41,3 +41,5 @@
 - the ai's starting space will always be adjacent to the users - randomly select the space using (n,s,e,w,ne,nw,se,sw)
 - after starting spaces selected, user makes first move
     -> movement prompting is done by '<row>,<column>' inputs from the user (this is a core functionality, aka individual function)
+- after each move the score for each player is calculated based on num building levels == 4 for user and == 1 for ai, checking to see if either
+    player has won
