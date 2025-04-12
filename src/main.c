@@ -8,7 +8,6 @@ char int_to_char(int n){
 }
 
 int get_random_num(int min, int max){
-    srand(time(NULL));
     return (rand() % (max - min + 1)) + min;
 }
 
@@ -93,27 +92,18 @@ bool is_valid_coordinate(int coordinate){
 }
 
 Coordinates get_ai_starting_coordinates(Coordinates user_location){
-    // [n, ne, e, se, s, sw, w, nw]
+    // [n: 1, ne: 2, e: 3, se: 4, s: 5, sw: 6, w: 7, nw: 8]
     int rn;
-    int *allowed_directions = get_allowed_directions(user_location);
-
-    int n = sizeof(allowed_directions) / sizeof(allowed_directions[0]);
-    printf("\nsize of allowed=%d \n", n);
-    // for(int i=0;i<n;i++){
-    //     printf("\nallowed: %d \n", i);
-    // }
-
-
-    for (int i = 0; i < 3; i++) {
-        printf("%d ", allowed_directions[i]);
+    IntArray allowed_directions = get_allowed_directions(user_location);
+    for (int i = 0; i < allowed_directions.len; i++) {
+        printf("allowed: %d ", allowed_directions.data[i]);
     }
-
-    // printf("\n rn: %d \n", rn);
-    // do {
-    //     rn = get_random_num(1, 8);
-    // } while(!random_num_in_allowed(rn, allowed_directions));
+    printf("\n");
+    do {
+        rn = get_random_num(1, 8);
+        printf("%d ", rn);
+    } while(!random_num_in_allowed(rn, allowed_directions.data, allowed_directions.len));
     
-
 
     // Coordinates coords;
     // switch (rn)
@@ -172,55 +162,60 @@ Coordinates get_ai_starting_coordinates(Coordinates user_location){
     // return coords;
 }
 
-int* get_allowed_directions(Coordinates user_location){
-    // int *allowed;
-
-    if(user_location.x == 1 && user_location.y == 1){
-        static int allowed[3] = { 3, 4, 5 };
-        return allowed;
-        
-        // allowed = malloc(3 * sizeof(int));
-        // allowed[0] = 3, allowed[1] = 4, allowed[2] = 5; 
-    }
-    // else if(user_location.x == 1 && user_location.y == 7){
-    //     allowed = malloc(3 * sizeof(int));
-    //     allowed[0] = 5, allowed[1] = 6, allowed[2] = 7; 
-    // }
-    // else if(user_location.x == 7 && user_location.y == 1){
-    //     allowed = malloc(3 * sizeof(int));
-    //     allowed[0] = 1, allowed[1] = 2, allowed[2] = 3; 
-    // }
-    // else if(user_location.x == 7 && user_location.y == 7){
-    //     allowed = malloc(3 * sizeof(int));
-    //     allowed[0] = 1, allowed[1] = 7, allowed[2] = 8; 
-    // }
-    // else if(user_location.x == 1){
-    //     allowed = malloc(5 * sizeof(int));
-    //     allowed[0] = 3, allowed[1] = 4, allowed[2] = 5, allowed[3] = 6, allowed[4] = 7; 
-    // }
-    // else if(user_location.x == 7){
-    //     allowed = malloc(5 * sizeof(int));
-    //     allowed[0] = 1, allowed[1] = 2, allowed[2] = 3, allowed[3] = 7, allowed[4] = 8; 
-    // }
-    // else if(user_location.y == 1){
-    //     allowed = malloc(5 * sizeof(int));
-    //     allowed[0] = 1, allowed[1] = 2, allowed[2] = 3, allowed[3] = 4, allowed[4] = 5; 
-    // }
-    // else if(user_location.y == 7){
-    //     allowed = malloc(5 * sizeof(int));
-    //     allowed[0] = 1, allowed[1] = 5, allowed[2] = 6, allowed[3] = 7, allowed[4] = 8; 
-    // }
-    // else {
-    //     allowed = malloc(8 * sizeof(int));
-    //     allowed[0] = 1, allowed[1] = 2, allowed[2] = 3, allowed[3] = 4, allowed[4] = 5, allowed[5] = 6, allowed[6] = 7, allowed[7] = 8;
-    // }
+IntArray get_allowed_directions(Coordinates user_location){
+    IntArray allowed;
     
-    // return allowed;
+    if(user_location.x == 1 && user_location.y == 1){
+        static int directions[3] = { 3, 4, 5 };
+        allowed.data = directions;
+        allowed.len = 3;
+    }
+    else if(user_location.x == 1 && user_location.y == 7){
+        static int directions[3] = { 5, 6, 7 };
+        allowed.data = directions;
+        allowed.len = 3;
+    }
+    else if(user_location.x == 7 && user_location.y == 1){
+        static int directions[3] = { 1, 2, 3 };
+        allowed.data = directions;
+        allowed.len = 3;
+    }
+    else if(user_location.x == 7 && user_location.y == 7){
+        static int directions[3] = { 1, 7, 8 };
+        allowed.data = directions;
+        allowed.len = 3;
+    }
+    else if(user_location.x == 1){
+        static int directions[5] = { 3, 4, 5, 6, 7 };
+        allowed.data = directions;
+        allowed.len = 5;
+    }
+    else if(user_location.x == 7){
+        static int directions[5] = { 1, 2, 3, 7, 8 };
+        allowed.data = directions;
+        allowed.len = 5;
+    }
+    else if(user_location.y == 1){
+        static int directions[5] = { 1, 2, 3, 4, 5 };
+        allowed.data = directions;
+        allowed.len = 5;
+    }
+    else if(user_location.y == 7){
+        static int directions[5] = { 1, 5, 6, 7, 8 };
+        allowed.data = directions;
+        allowed.len = 5;
+    }
+    else {
+        
+        static int directions[8] = { 1, 2, 3, 4, 5, 6, 7, 8 };
+        allowed.data = directions;
+        allowed.len = 8;
+    }
+    return allowed;
 }
 
-bool random_num_in_allowed(int target, int* arr){
-    int num_elems = sizeof(arr) / sizeof(arr[0]);
-    for(int i=0;i<num_elems;i++){
+bool random_num_in_allowed(int target, int* arr, size_t arr_len){
+    for(int i=0;i<arr_len;i++){
         if(arr[i] == target){
             return true;
         } 
@@ -229,14 +224,15 @@ bool random_num_in_allowed(int target, int* arr){
 }
 
 int main(int argc, char *argv[]){
+    srand(time(NULL));
     // GameBoard *board = initialize_gameboard();
     // print_board(board);
 
     // add_player('P');
 
     Coordinates coords;
-    coords.x = 1;
-    coords.y = 1;
+    coords.x = 4;
+    coords.y = 4;
     get_ai_starting_coordinates(coords);
 
     return 0;
