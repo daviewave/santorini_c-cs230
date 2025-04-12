@@ -48,21 +48,18 @@ void print_board(GameBoard *board) {
 }
 
 //== 2.
-Player* add_player(char name){
+Player add_player(char name, Coordinates *user_location){
     Player new_player;
     new_player.name = name;
+    new_player.score = 0;
 
     if(name == 'P'){
         new_player.curr = get_coordinates_input();
     } else {
-
+        new_player.curr = get_ai_starting_coordinates(user_location);
     }
 
-    printf("%d", new_player.curr.x);
-    printf("\n");
-    printf("%d", new_player.curr.y);
-    printf("\n");
-
+    return new_player;
 }
 
 // TODO: update input format checking with regular expressions
@@ -91,116 +88,59 @@ bool is_valid_coordinate(int coordinate){
     return false;
 }
 
-Coordinates get_ai_starting_coordinates(Coordinates user_location){
+Coordinates get_ai_starting_coordinates(Coordinates *user_location){
     // [n: 1, ne: 2, e: 3, se: 4, s: 5, sw: 6, w: 7, nw: 8]
     int rn;
     IntArray allowed_directions = get_allowed_directions(user_location);
-    for (int i = 0; i < allowed_directions.len; i++) {
-        printf("allowed: %d ", allowed_directions.data[i]);
-    }
-    printf("\n");
     do {
         rn = get_random_num(1, 8);
-        printf("%d ", rn);
     } while(!random_num_in_allowed(rn, allowed_directions.data, allowed_directions.len));
     
-
-    // Coordinates coords;
-    // switch (rn)
-    // {
-    // case 1:
-    //     // north
-    //     coords.x = user_location.x + 1;
-    //     coords.y = user_location.y;
-    //     break;
-    
-    // case 2:
-    //     // northeast
-    //     coords.x = user_location.x + 1;
-    //     coords.y = user_location.y + 1;
-    //     break;
-
-    // case 3:
-    //     // east
-    //     coords.x = user_location.x;
-    //     coords.y = user_location.y + 1;
-    //     break;
-
-    // case 4:
-    //     // southeast
-    //     coords.x = user_location.x - 1;
-    //     coords.y = user_location.y + 1;
-    //     break;
-
-    // case 5:
-    //     // south
-    //     coords.x = user_location.x - 1;
-    //     coords.y = user_location.y;
-    //     break;
-
-    // case 6:
-    //     // southwest
-    //     coords.x = user_location.x - 1;
-    //     coords.y = user_location.y - 1;
-    //     break;
-
-    // case 7:
-    //     // west
-    //     coords.x = user_location.x;
-    //     coords.y = user_location.y - 1;
-    //     break;
-    
-    // case 8:
-    //     // northwest
-    //     coords.x = user_location.x + 1;
-    //     coords.y = user_location.y - 1;
-    //     break;
-
-    // default:
-    //     break;
-    // }
-    // return coords;
+    printf("[n: 1, ne: 2, e: 3, se: 4, s: 5, sw: 6, w: 7, nw: 8]\n");
+    printf("dir: %d \n", rn);
+    return get_adjacent_coords(rn, user_location);
 }
 
-IntArray get_allowed_directions(Coordinates user_location){
+IntArray get_allowed_directions(Coordinates *user_location){
     IntArray allowed;
-    
-    if(user_location.x == 1 && user_location.y == 1){
+
+    if(user_location->x == 1 && user_location->y == 1){
         static int directions[3] = { 3, 4, 5 };
         allowed.data = directions;
         allowed.len = 3;
     }
-    else if(user_location.x == 1 && user_location.y == 7){
+    else if(user_location->x == 1 && user_location->y == 6){
         static int directions[3] = { 5, 6, 7 };
         allowed.data = directions;
         allowed.len = 3;
     }
-    else if(user_location.x == 7 && user_location.y == 1){
+    else if(user_location->x == 6 && user_location->y == 1){
         static int directions[3] = { 1, 2, 3 };
         allowed.data = directions;
         allowed.len = 3;
     }
-    else if(user_location.x == 7 && user_location.y == 7){
+    else if(user_location->x == 6 && user_location->y == 6){
+        printf("\nhitting correctly\n");
         static int directions[3] = { 1, 7, 8 };
         allowed.data = directions;
         allowed.len = 3;
     }
-    else if(user_location.x == 1){
+    else if(user_location->x == 1){
         static int directions[5] = { 3, 4, 5, 6, 7 };
         allowed.data = directions;
         allowed.len = 5;
     }
-    else if(user_location.x == 7){
+    else if(user_location->x == 6){
         static int directions[5] = { 1, 2, 3, 7, 8 };
         allowed.data = directions;
         allowed.len = 5;
     }
-    else if(user_location.y == 1){
+    else if(user_location->y == 1){
         static int directions[5] = { 1, 2, 3, 4, 5 };
         allowed.data = directions;
         allowed.len = 5;
     }
-    else if(user_location.y == 7){
+    else if(user_location->y == 6){
         static int directions[5] = { 1, 5, 6, 7, 8 };
         allowed.data = directions;
         allowed.len = 5;
@@ -223,17 +163,85 @@ bool random_num_in_allowed(int target, int* arr, size_t arr_len){
     return false;
 }
 
+Coordinates get_adjacent_coords(int random_number, Coordinates *user_location){
+    Coordinates coords;
+    switch (random_number)
+    {
+    case 1:
+        // north
+        coords.x = user_location->x - 1;
+        coords.y = user_location->y;
+        break;
+    
+    case 2:
+        // northeast
+        coords.x = user_location->x - 1;
+        coords.y = user_location->y + 1;
+        break;
+
+    case 3:
+        // east
+        coords.x = user_location->x;
+        coords.y = user_location->y + 1;
+        break;
+
+    case 4:
+        // southeast
+        coords.x = user_location->x + 1;
+        coords.y = user_location->y + 1;
+        break;
+
+    case 5:
+        // south
+        coords.x = user_location->x + 1;
+        coords.y = user_location->y;
+        break;
+
+    case 6:
+        // southwest
+        coords.x = user_location->x + 1;
+        coords.y = user_location->y - 1;
+        break;
+
+    case 7:
+        // west
+        coords.x = user_location->x;
+        coords.y = user_location->y - 1;
+        break;
+    
+    case 8:
+        // northwest
+        coords.x = user_location->x - 1;
+        coords.y = user_location->y - 1;
+        break;
+
+    default:
+        break;
+    }
+    return coords;
+}
+
 int main(int argc, char *argv[]){
     srand(time(NULL));
-    // GameBoard *board = initialize_gameboard();
-    // print_board(board);
+    GameBoard *board = initialize_gameboard();
+    print_board(board);
 
-    // add_player('P');
+    printf("\n");
+    Player user = add_player('P', NULL);
+    Player ai = add_player('A', &user.curr);
 
-    Coordinates coords;
-    coords.x = 4;
-    coords.y = 4;
-    get_ai_starting_coordinates(coords);
+    printf("User Player: \n");
+    printf("\t name -> %c \n", user.name);
+    printf("\t score -> %d \n", user.score);
+    printf("\t curr.x -> %d \n", user.curr.x);
+    printf("\t curr.y -> %d \n", user.curr.y);
+    printf("\n");
+    printf("Ai Player: \n");
+    printf("\t name -> %c \n", ai.name);
+    printf("\t score -> %d \n", ai.score);
+    printf("\t curr.x -> %d \n", ai.curr.x);
+    printf("\t curr.y -> %d \n", ai.curr.y);
+    printf("\n");
 
     return 0;
 }
