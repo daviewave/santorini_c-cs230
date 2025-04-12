@@ -28,6 +28,11 @@ typedef struct {
     Coordinates next;
 } Player;
 
+typedef struct {
+    int *data;
+    size_t len;
+} IntArray;
+
 typedef Space GameBoard[ROWS][COLS];
 
 // 1.
@@ -35,12 +40,13 @@ GameBoard* initialize_gameboard(void);
 void print_board(GameBoard* board);
 
 // 2. 
-Player* add_player(char name);
+Player add_player(char name, Coordinates *user_location);
 void print_starting_msg(void);
 Coordinates get_coordinates_input(void);
-Coordinates get_ai_starting_coordinates(Coordinates user_location);
+Coordinates get_ai_starting_coordinates(Coordinates *user_location);
 bool is_valid_coordinate(int coordinate);
-int* get_allowed_directions(Coordinates user_location);
+IntArray get_allowed_directions(Coordinates *user_location);
+Coordinates get_adjacent_coords(int random_number, Coordinates *user_location);
 // bool allowed
 
 
@@ -55,6 +61,6 @@ void display_game_over_message(Player player);
 char int_to_char(int n);
 void set_board_display(Space* space);
 int get_random_num(int min, int max);
-bool random_num_in_allowed(int target, int* arr);
+bool random_num_in_allowed(int target, int* arr, size_t arr_len);
 
 #endif
