@@ -11,6 +11,10 @@ int get_random_num(int min, int max){
     return (rand() % (max - min + 1)) + min;
 }
 
+void clear_console(){
+    system("clear");
+}
+
 
 //== 1.
 GameBoard* initialize_gameboard() {
@@ -36,6 +40,10 @@ GameBoard* initialize_gameboard() {
         }
     }
     return &board;
+}
+
+void print_starting_msg(){
+    printf("Welcome to santorini special edition! \nYour goal is to get 10 places on the board to level 4 before the AI.\n\n");
 }
 
 void print_board(GameBoard *board) {
@@ -96,8 +104,8 @@ Coordinates get_ai_starting_coordinates(Coordinates *user_location){
         rn = get_random_num(1, 8);
     } while(!random_num_in_allowed(rn, allowed_directions.data, allowed_directions.len));
     
-    printf("[n: 1, ne: 2, e: 3, se: 4, s: 5, sw: 6, w: 7, nw: 8]\n");
-    printf("dir: %d \n", rn);
+    // printf("[n: 1, ne: 2, e: 3, se: 4, s: 5, sw: 6, w: 7, nw: 8]\n");
+    // printf("dir: %d \n", rn);
     return get_adjacent_coords(rn, user_location);
 }
 
@@ -221,27 +229,100 @@ Coordinates get_adjacent_coords(int random_number, Coordinates *user_location){
     return coords;
 }
 
+void set_space_board_display(Space *space){
+    // if occupied != '\0' set board_display as that and return
+    if(space->occupied != '\0'){
+        space->board_display = space->occupied;
+    } else {
+        space->board_display = space->level;
+    }
+}
+
+//== 3.
+void next_move(Player *player, GameBoard *board){
+    if(player->name == 'P'){
+        // prompt,
+        Coordinates coords = get_coordinates_input();
+        printf("\nx: %d y: %d", coords.x, coords.y);
+        Space *next_space = get_board_space(&coords, board);
+        printf("\nns bd: %c", next_space->board_display);
+        printf("\nns level: %d", next_space->level);
+        printf("\nns bd: %c", next_space->occupied);
+        printf("\nns bd: %d", next_space->coordinates.x);
+        printf("\nns bd: %d", next_space->coordinates.y);
+        // validate move 
+
+    } else {
+        // ai automatically selects coords until valid spot is chosen
+    }
+}
+
+Space* get_board_space(Coordinates *coords, GameBoard *board){
+    Space *found = &(*board)[coords->x][coords->y];
+    return found;
+}
+
+
 int main(int argc, char *argv[]){
     srand(time(NULL));
+    clear_console();
     GameBoard *board = initialize_gameboard();
+    print_starting_msg();
     print_board(board);
 
     printf("\n");
     Player user = add_player('P', NULL);
+    Space *starting_user_space = get_board_space(&user.curr, board);
+    starting_user_space->occupied = user.name;
+    set_space_board_display(starting_user_space);
+    
     Player ai = add_player('A', &user.curr);
+    Space *starting_ai_space = get_board_space(&ai.curr, board);
+    starting_ai_space->occupied = ai.name;
+    set_space_board_display(starting_ai_space);
 
-    printf("User Player: \n");
-    printf("\t name -> %c \n", user.name);
-    printf("\t score -> %d \n", user.score);
-    printf("\t curr.x -> %d \n", user.curr.x);
-    printf("\t curr.y -> %d \n", user.curr.y);
-    printf("\n");
-    printf("Ai Player: \n");
-    printf("\t name -> %c \n", ai.name);
-    printf("\t score -> %d \n", ai.score);
-    printf("\t curr.x -> %d \n", ai.curr.x);
-    printf("\t curr.y -> %d \n", ai.curr.y);
-    printf("\n");
+    // printf("\nns bd: %c", starting_user_space->board_display);
+    // printf("\nns level: %d", starting_user_space->level);
+    // printf("\nns occupied: %c", starting_user_space->occupied);
+    // printf("\nns cx: %d", starting_user_space->coordinates.x);
+    // printf("\nns cy: %d", starting_user_space->coordinates.y);
+
+    // printf("\nai bd: %c", starting_ai_space->board_display);
+    // printf("\nai level: %d", starting_ai_space->level);
+    // printf("\nai occupied: %c", starting_ai_space->occupied);
+    // printf("\nai cx: %d", starting_ai_space->coordinates.x);
+    // printf("\nai cy: %d", starting_ai_space->coordinates.y);
+
+    // printf("User Player: \n");
+    // printf("\t name -> %c \n", user.name);
+    // printf("\t score -> %d \n", user.score);
+    // printf("\t curr.x -> %d \n", user.curr.x);
+    // printf("\t curr.y -> %d \n", user.curr.y);
+    // printf("\n");
+    // printf("Ai Player: \n");
+    // printf("\t name -> %c \n", ai.name);
+    // printf("\t score -> %d \n", ai.score);
+    // printf("\t curr.x -> %d \n", ai.curr.x);
+    // printf("\t curr.y -> %d \n", ai.curr.y);
+    // printf("\n");
+
+
+    do {
+        // keep running until a player has reached score=10
+        clear_console();
+        print_board(board);
+        // next_move(&user, board);
+        // next_move(&ai, board);
+        // check_for_winner()
+
+        break;
+        
+    } while(true);
+
+
+
+
+    // free(board);
 
     return 0;
 }
