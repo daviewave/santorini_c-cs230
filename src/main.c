@@ -49,6 +49,7 @@ GameBoard *initialize_gameboard()
                 board[i][j].level = 2;
                 board[i][j].board_display = '2'; // level to start since user hasnt been prompted for starting space
             }
+            board[i][j].occupied = ' ';
         }
     }
     return &board;
@@ -273,13 +274,13 @@ Coordinates get_adjacent_coords(int random_number, Coordinates *user_location)
 void set_space_board_display(Space *space)
 {
     // if occupied != ' ' set board_display as that and return
-    if (space->occupied != ' ')
+    if (space->occupied == 'P' || space->occupied == 'A')
     {
         space->board_display = space->occupied;
     }
     else
     {
-        space->board_display = space->level;
+        space->board_display = int_to_char(space->level);
     }
 }
 
@@ -325,13 +326,14 @@ void next_move(Player *player, Coordinates *opp, GameBoard *board)
 
         //==* At this point its determined to be a valid move
         // 6, change levels on each space in the path, including where player lands
+        update_spaces_in_path(d, true, &player->curr, &coords, board);
+        next_space->occupied = player->name;
+        player->curr = coords;
+        set_space_board_display(next_space);
 
-        // 7, set the next_space.occupied = player.name & set_board_display()
+        // printf("\nnew location level: %d \n", next_space->level);
 
-        // if (is_unobstructed_path(&player->curr, &coords, board))
-        // {
-        //     printf("\nis unobstructed path \n");
-        // }
+        // 7, set the player->curr = coords +
 
         // if (not_occupied(next_space) && is_straight_line_movement(&player->curr, &coords) && is_unobstructed_path(&player->curr, &coords, board))
         // {
@@ -431,7 +433,7 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
     switch (direction)
     {
     case 1:
-        if ((opposing_player->y == next->y) && (opposing_player->x > next->x))
+        if (((opposing_player->y == curr->y && opposing_player->y == next->y)) && (opposing_player->x > next->x))
             return true;
         break;
     case 2:
@@ -470,63 +472,83 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
         break;
     }
     return false;
+}
 
-    // int x_movement = next->x - curr->y;
-    // int y_movement = next->y - curr->y;
-    // Coordinates curr_coords;
-    // Space *curr_space;
+void update_spaces_in_path(int direction, bool increase, Coordinates *curr, Coordinates *next, GameBoard *board)
+{
+    // 1, using the direction, determine step values
+    int x_step, y_step;
+    switch (direction)
+    {
+    case 1:
+        x_step = -1;
+        y_step = 0;
+        break;
+    case 2:
+        x_step = -1;
+        y_step = 1;
+        break;
 
-    // if (x_movement == 0)
-    // {
-    //     // non diagnol y movement
-    //     int step_direction = (y_movement > 0) ? 1 : -1;
-    //     for (int y = (curr->y += step_direction); y != next->y; y += step_direction)
-    //     {
-    //         curr_coords.y = y;
-    //         curr_space = get_board_space(&curr_coords, board);
-    //         if (curr_space->occupied != ' ')
-    //         {
-    //             return false;
-    //         }
-    //     }
-    // }
-    // else if (y_movement == 0)
-    // {
-    //     printf("\n correct condition \n");
-    //     // non diagnol x movement
-    //     // curr_coords.y = 0; -> automatically gets set to 0
-    //     int step_direction = (x_movement > 0) ? 1 : -1;
-    //     for (int x = (curr->x += step_direction); x != next->x; x += step_direction)
-    //     {
-    //         curr_coords.x = x;
-    //         curr_space = get_board_space(&curr_coords, board);
-    //         if (curr_space->occupied != ' ')
-    //         {
-    //             return false;
-    //         }
-    //     }
-    // }
-    // else
-    // {
-    //     // diagnol movement
-    //     int x_step_dir = (x_movement > 0) ? 1 : -1;
-    //     int y_step_dir = (y_movement > 0) ? 1 : -1;
-    //     int x = (curr->x += x_step_dir);
-    //     int y = (curr->y += y_step_dir);
-    //     do
-    //     {
-    //         curr_coords.x = x;
-    //         curr_coords.y = y;
-    //         curr_space = get_board_space(&curr_coords, board);
-    //         if (curr_space->occupied != ' ')
-    //         {
-    //             return false;
-    //         }
-    //         x += x_step_dir;
-    //         y += y_step_dir;
-    //     } while (x != next->x && y != next->y);
-    // }
-    // return true;
+    case 3:
+        x_step = 0;
+        y_step = 1;
+        break;
+
+    case 4:
+        x_step = 1;
+        y_step = 1;
+        break;
+
+    case 5:
+        x_step = 1;
+        y_step = 0;
+        break;
+
+    case 6:
+        x_step = 1;
+        y_step = -1;
+        break;
+
+    case 7:
+        x_step = 0;
+        y_step = -1;
+        break;
+
+    case 8:
+        x_step = -1;
+        y_step = -1;
+        break;
+
+    default:
+        break;
+    }
+
+    // 2, step through each Space in path with loop logic
+    int curr_x = curr->x;
+    int curr_y = curr->y;
+    Coordinates curr_coords;
+    Space *curr_space;
+
+    while (curr_coords.x != next->x || curr_coords.y != next->y)
+    {
+        curr_coords.x = curr_x;
+        curr_coords.y = curr_y;
+        // printf("\n\ncurr x: %d \ncurrc y: %d \n\n", curr_coords.x, curr_coords.y);
+        curr_space = get_board_space(&curr_coords, board);
+        if (curr_x == curr->x && curr_y == curr->y)
+            curr_space->occupied = 'N';
+        else
+        {
+            if (increase)
+                curr_space->level += 1;
+            else
+                curr_space->level -= 1;
+        }
+        // printf("\ncurr sp level: %d \n", curr_space->level);
+        curr_x += x_step;
+        curr_y += y_step;
+        set_space_board_display(curr_space);
+    }
 }
 
 int main(int argc, char *argv[])
@@ -579,7 +601,7 @@ int main(int argc, char *argv[])
     do
     {
         // keep running until a player has reached score=10
-        clear_console();
+        // clear_console();
         // print_score();
         print_board(board);
         next_move(&user, &ai.curr, board);
@@ -589,6 +611,9 @@ int main(int argc, char *argv[])
         break;
 
     } while (true);
+
+    printf("\n");
+    print_board(board);
 
     // free(board);
 

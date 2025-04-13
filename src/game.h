@@ -60,7 +60,7 @@ int get_move_direction(int xdiff, int ydiff);
 bool is_occupied(Space *space);
 bool is_not_straight_line_movement(int xdiff, int ydiff);
 bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coordinates *opp);
-// void traverse_move_path(int direction, , Coordinates *curr, Coordinates *next);
+void update_spaces_in_path(int direction, bool increase, Coordinates *curr, Coordinates *next, GameBoard *board);
 
 bool is_straight_line(Coordinates curr, Coordinates next);
 int get_random_coordinate(void);
