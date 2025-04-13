@@ -428,20 +428,23 @@ bool is_not_straight_line_movement(int xdiff, int ydiff)
     return true;
 }
 
+// TODO: there
 bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coordinates *opposing_player)
 {
     switch (direction)
     {
     case 1:
-        if (((opposing_player->y == curr->y && opposing_player->y == next->y)) && (opposing_player->x > next->x))
+        if ((opposing_player->y == next->y) && (opposing_player->x < curr->x) && (opposing_player->x > next->x))
             return true;
         break;
+
     case 2:
         if (((curr->x > opposing_player->x) && (next->x < opposing_player->x)) && ((curr->y < opposing_player->y) && (next->y > opposing_player->y)))
             return true;
         break;
+
     case 3:
-        if ((opposing_player->x == next->x) && (opposing_player->y < next->y))
+        if ((opposing_player->x == next->x) && (opposing_player->y > curr->y) && (opposing_player->y < next->y))
             return true;
         break;
 
@@ -451,7 +454,7 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
         break;
 
     case 5:
-        if ((opposing_player->y == next->y) && (next->x > opposing_player->x))
+        if ((opposing_player->y == next->y) && (opposing_player->x > curr->x) && (next->x > opposing_player->x))
             return true;
         break;
 
@@ -459,10 +462,12 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
         if (((curr->x < opposing_player->x) && (next->x > opposing_player->x)) && ((curr->y > opposing_player->y) && (next->y < opposing_player->y)))
             return true;
         break;
+
     case 7:
-        if ((opposing_player->x == next->x) && (opposing_player->y > next->y))
+        if ((opposing_player->x == next->x) && (opposing_player->y < curr->y) && (opposing_player->y > next->y))
             return true;
         break;
+
     case 8:
         if (((curr->x > opposing_player->x) && (next->x < opposing_player->x)) && ((curr->y > opposing_player->y) && (next->y < opposing_player->y)))
             return true;
