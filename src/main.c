@@ -303,6 +303,7 @@ void next_move(Player *player, Coordinates *opp, GameBoard *board)
         int xdiff = coords.x - player->curr.x;
         int ydiff = coords.y - player->curr.y;
         int d = get_move_direction(xdiff, ydiff);
+        printf("direction: %d", d);
 
         // 4, ensure straight line if diagnol
         if (d == 2 || d == 4 || d == 6 || d == 8)
@@ -322,7 +323,7 @@ void next_move(Player *player, Coordinates *opp, GameBoard *board)
             next_move(player, opp, board);
         }
 
-                //==* At this point its determined to be a valid move
+        //==* At this point its determined to be a valid move
         // 6, change levels on each space in the path, including where player lands
 
         // 7, set the next_space.occupied = player.name & set_board_display()
@@ -430,7 +431,7 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
     switch (direction)
     {
     case 1:
-        if (opposing_player->x > next->x)
+        if ((opposing_player->y == next->y) && (opposing_player->x > next->x))
             return true;
         break;
     case 2:
@@ -438,7 +439,7 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
             return true;
         break;
     case 3:
-        if (opposing_player->y < next->y)
+        if ((opposing_player->x == next->x) && (opposing_player->y < next->y))
             return true;
         break;
 
@@ -448,7 +449,7 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
         break;
 
     case 5:
-        if (next->x > opposing_player->x)
+        if ((opposing_player->y == next->y) && (next->x > opposing_player->x))
             return true;
         break;
 
@@ -457,7 +458,7 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
             return true;
         break;
     case 7:
-        if (next->y < opposing_player->y)
+        if ((opposing_player->x == next->x) && (opposing_player->y > next->y))
             return true;
         break;
     case 8:
@@ -468,7 +469,7 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
     default:
         break;
     }
-    return true;
+    return false;
 
     // int x_movement = next->x - curr->y;
     // int y_movement = next->y - curr->y;
