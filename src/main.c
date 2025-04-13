@@ -161,7 +161,6 @@ IntArray get_allowed_directions(Coordinates *user_location)
     }
     else if (user_location->x == 6 && user_location->y == 6)
     {
-        printf("\nhitting correctly\n");
         static int directions[3] = {1, 7, 8};
         allowed.data = directions;
         allowed.len = 3;
@@ -273,8 +272,8 @@ Coordinates get_adjacent_coords(int random_number, Coordinates *user_location)
 
 void set_space_board_display(Space *space)
 {
-    // if occupied != '\0' set board_display as that and return
-    if (space->occupied != '\0')
+    // if occupied != ' ' set board_display as that and return
+    if (space->occupied != ' ')
     {
         space->board_display = space->occupied;
     }
@@ -285,30 +284,77 @@ void set_space_board_display(Space *space)
 }
 
 //== 3.
-void next_move(Player *player, GameBoard *board)
+void next_move(Player *player, Coordinates *opp, GameBoard *board)
 {
     if (player->name == 'P')
     {
-        // prompt,
+        // 1, prompt new space coords
         Coordinates coords = get_coordinates_input();
         Space *next_space = get_board_space(&coords, board);
 
-        if (not_occupied(next_space) && is_straight_line(player->curr, coords) && is_unobstructed_path(&player->curr, &coords, board))
+        // 2, ensure space isnt occupied by other player
+        if (is_occupied(next_space))
         {
-            // set next_space occupied to player.name
-            // set the previous occupied space to '\0'
-            // set board displays for both next and previous
-            // NOTE: have to determine when levels are updates, prob makes sense to break the unobstructed path to more granular functions so they can be used
-            //          for this too
+            printf("\n\t(invalid move) -> other player already at this space. must select unoccupied space. \n\n");
+            next_move(player, opp, board);
         }
 
-        printf("\nx: %d y: %d", coords.x, coords.y);
-        printf("\nns bd: %c", next_space->board_display);
-        printf("\nns level: %d", next_space->level);
-        printf("\nns bd: %c", next_space->occupied);
-        printf("\nns bd: %d", next_space->coordinates.x);
-        printf("\nns bd: %d", next_space->coordinates.y);
+        // 3, determine move direction
+        int xdiff = coords.x - player->curr.x;
+        int ydiff = coords.y - player->curr.y;
+        int d = get_move_direction(xdiff, ydiff);
+
+        // 4, ensure straight line if diagnol
+        if (d == 2 || d == 4 || d == 6 || d == 8)
+        {
+            // diagnol movement -- must ensure straight line
+            if (is_not_straight_line_movement(xdiff, ydiff))
+            {
+                printf("\n\t(invalid move) -> only straight line movements allowed. \n\n");
+                next_move(player, opp, board);
+            }
+        }
+
+        // 5, ensure unobstructed path
+        if (is_obstructed_path(d, &player->curr, &coords, opp))
+        {
+            printf("\n\t(invalid move) -> opposing play obstructing path to new space entered. \n\n");
+            next_move(player, opp, board);
+        }
+
+                //==* At this point its determined to be a valid move
+        // 6, change levels on each space in the path, including where player lands
+
+        // 7, set the next_space.occupied = player.name & set_board_display()
+
+        // if (is_unobstructed_path(&player->curr, &coords, board))
+        // {
+        //     printf("\nis unobstructed path \n");
+        // }
+
+        // if (not_occupied(next_space) && is_straight_line_movement(&player->curr, &coords) && is_unobstructed_path(&player->curr, &coords, board))
+        // {
+        //     printf("\nhitttting\n");
+        //     // set next_space occupied to player.name
+        //     // set the previous occupied space to '\0'
+        //     // set board displays for both next and previous
+        //     // NOTE: have to determine when levels are updated, prob makes sense to break the unobstructed path to more granular functions so they can be used
+        //     //          for this too
+        // }
+        // printf("\ninvalid movement\n");
+
+        // printf("\nx: %d y: %d", coords.x, coords.y);
+        // printf("\nns bd: %c", next_space->board_display);
+        // printf("\nns level: %d", next_space->level);
+        // printf("\nns bd: %c", next_space->occupied);
+        // printf("\nns bd: %d", next_space->coordinates.x);
+        // printf("\nns bd: %d", next_space->coordinates.y);
         // validate move
+        // printf("\nns bd: %c", next_space->board_display);
+        // printf("\nns level: %d", next_space->level);
+        // printf("\nns bd: %c", next_space->occupied);
+        // printf("\nns bd: %d", next_space->coordinates.x);
+        // printf("\nns bd: %d", next_space->coordinates.y);
     }
     else
     {
@@ -322,78 +368,164 @@ Space *get_board_space(Coordinates *coords, GameBoard *board)
     return found;
 }
 
-bool not_occupied(Space *space)
+int get_move_direction(int xdiff, int ydiff)
 {
-    if (space->occupied != '\0')
-        return true;
-    return false;
-}
-
-bool is_straight_line_movement(Coordinates *curr, Coordinates *next)
-{
-    int slope = abs((next->y - curr->y) / (next->x - next->y));
-    if (slope == 1)
-        return true;
-    return false;
-}
-
-bool is_unobstructed_path(Coordinates *curr, Coordinates *next, GameBoard *board)
-{
-    int x_movement = next->x - curr->y;
-    int y_movement = next->y - curr->y;
-    Coordinates curr_coords;
-    Space *curr_space;
-
-    if (x_movement == 0)
+    // printf("[n: 1, ne: 2, e: 3, se: 4, s: 5, sw: 6, w: 7, nw: 8]\n")
+    // int xdiff = next->x - curr->y;
+    // int ydiff = next->y - curr->y;
+    if (ydiff == 0 && xdiff != 0)
     {
-        // non diagnol y movement
-        int step_direction = (y_movement > 0) ? 1 : -1;
-        for (int y = (curr->y += step_direction); y != next->y; y += step_direction)
-        {
-            curr_coords.y = y;
-            curr_space = get_board_space(&curr_coords, board);
-            if (curr_space->occupied != '\0')
-            {
-                return false;
-            }
-        }
+        // south or north
+        return (xdiff > 0) ? 5 : 1;
     }
-    else if (y_movement == 0)
+    else if (ydiff != 0 && xdiff == 0)
     {
-        // non diagnol x movement
-        // curr_coords.y = 0; -> automatically gets set to 0
-        int step_direction = (x_movement > 0) ? 1 : -1;
-        for (int x = (curr->x += step_direction); x != next->x; x += step_direction)
-        {
-            curr_coords.x = x;
-            curr_space = get_board_space(&curr_coords, board);
-            if (curr_space->occupied != '\0')
-            {
-                return false;
-            }
-        }
+        // east or west
+        return (ydiff > 0) ? 3 : 7;
     }
     else
     {
-        // diagnol movement
-        int x_step_dir = (x_movement > 0) ? 1 : -1;
-        int y_step_dir = (y_movement > 0) ? 1 : -1;
-        int x = (curr->x += x_step_dir);
-        int y = (curr->y += y_step_dir);
-        do
+        if (ydiff > 0 && xdiff < 0)
         {
-            curr_coords.x = x;
-            curr_coords.y = y;
-            curr_space = get_board_space(&curr_coords, board);
-            if (curr_space->occupied != '\0')
-            {
-                return false;
-            }
-            x += x_step_dir;
-            y += y_step_dir;
-        } while (x != next->x && y != next->y);
+            // northeast
+            return 2;
+        }
+        else if (ydiff > 0 && xdiff > 0)
+        {
+            // southeast
+            return 4;
+        }
+        else if (ydiff < 0 && xdiff > 0)
+        {
+            // southwest
+            return 6;
+        }
+        else
+        {
+            // northwest
+            return 8;
+        }
+    }
+}
+
+bool is_occupied(Space *space)
+{
+    if (space->occupied == 'P' || space->occupied == 'A')
+        return true;
+
+    return false;
+}
+
+bool is_not_straight_line_movement(int xdiff, int ydiff)
+{
+    int slope = abs((ydiff) / (xdiff));
+
+    if (slope == 1)
+        return false;
+    return true;
+}
+
+bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coordinates *opposing_player)
+{
+    switch (direction)
+    {
+    case 1:
+        if (opposing_player->x > next->x)
+            return true;
+        break;
+    case 2:
+        if (((curr->x > opposing_player->x) && (next->x < opposing_player->x)) && ((curr->y < opposing_player->y) && (next->y > opposing_player->y)))
+            return true;
+        break;
+    case 3:
+        if (opposing_player->y < next->y)
+            return true;
+        break;
+
+    case 4:
+        if (((curr->x < opposing_player->x) && (next->x > opposing_player->x)) && ((curr->y > opposing_player->y) && (next->y > opposing_player->y)))
+            return true;
+        break;
+
+    case 5:
+        if (next->x > opposing_player->x)
+            return true;
+        break;
+
+    case 6:
+        if (((curr->x < opposing_player->x) && (next->x > opposing_player->x)) && ((curr->y > opposing_player->y) && (next->y < opposing_player->y)))
+            return true;
+        break;
+    case 7:
+        if (next->y < opposing_player->y)
+            return true;
+        break;
+    case 8:
+        if (((curr->x > opposing_player->x) && (next->x < opposing_player->x)) && ((curr->y > opposing_player->y) && (next->y < opposing_player->y)))
+            return true;
+        break;
+
+    default:
+        break;
     }
     return true;
+
+    // int x_movement = next->x - curr->y;
+    // int y_movement = next->y - curr->y;
+    // Coordinates curr_coords;
+    // Space *curr_space;
+
+    // if (x_movement == 0)
+    // {
+    //     // non diagnol y movement
+    //     int step_direction = (y_movement > 0) ? 1 : -1;
+    //     for (int y = (curr->y += step_direction); y != next->y; y += step_direction)
+    //     {
+    //         curr_coords.y = y;
+    //         curr_space = get_board_space(&curr_coords, board);
+    //         if (curr_space->occupied != ' ')
+    //         {
+    //             return false;
+    //         }
+    //     }
+    // }
+    // else if (y_movement == 0)
+    // {
+    //     printf("\n correct condition \n");
+    //     // non diagnol x movement
+    //     // curr_coords.y = 0; -> automatically gets set to 0
+    //     int step_direction = (x_movement > 0) ? 1 : -1;
+    //     for (int x = (curr->x += step_direction); x != next->x; x += step_direction)
+    //     {
+    //         curr_coords.x = x;
+    //         curr_space = get_board_space(&curr_coords, board);
+    //         if (curr_space->occupied != ' ')
+    //         {
+    //             return false;
+    //         }
+    //     }
+    // }
+    // else
+    // {
+    //     // diagnol movement
+    //     int x_step_dir = (x_movement > 0) ? 1 : -1;
+    //     int y_step_dir = (y_movement > 0) ? 1 : -1;
+    //     int x = (curr->x += x_step_dir);
+    //     int y = (curr->y += y_step_dir);
+    //     do
+    //     {
+    //         curr_coords.x = x;
+    //         curr_coords.y = y;
+    //         curr_space = get_board_space(&curr_coords, board);
+    //         if (curr_space->occupied != ' ')
+    //         {
+    //             return false;
+    //         }
+    //         x += x_step_dir;
+    //         y += y_step_dir;
+    //     } while (x != next->x && y != next->y);
+    // }
+    // return true;
 }
 
 int main(int argc, char *argv[])
@@ -449,7 +581,7 @@ int main(int argc, char *argv[])
         clear_console();
         // print_score();
         print_board(board);
-        next_move(&user, board);
+        next_move(&user, &ai.curr, board);
         // next_move(&ai, board);
         // check_for_winner()
 
