@@ -453,8 +453,10 @@ bool is_occupied(Space *space)
 
 bool is_not_straight_line_movement(int xdiff, int ydiff)
 {
+    printf("\nxdf: %d\nydf: %d", xdiff, ydiff);
     int slope = abs((ydiff) / (xdiff));
 
+    printf("\nslope: %d \n", slope);
     if (slope == 1)
         return false;
     return true;

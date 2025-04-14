@@ -53,7 +53,7 @@ Coordinates get_adjacent_coords(int random_number, Coordinates *user_location);
 void set_board_display(Space *space);
 
 // 3.
-void next_move(Player *player, Coordinates *opp, GameBoard *board);
+int next_move(Player *player, Coordinates *opp, GameBoard *board);
 Space *get_board_space(Coordinates *coords, GameBoard *board);
 void print_score(Player *user, Player *ai);
 int get_move_direction(int xdiff, int ydiff);
@@ -62,16 +62,17 @@ bool is_not_straight_line_movement(int xdiff, int ydiff);
 bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coordinates *opp);
 void update_spaces_in_path(int direction, bool increase, Coordinates *curr, Coordinates *next, GameBoard *board);
 
-bool is_straight_line(Coordinates curr, Coordinates next);
 int get_random_coordinate(void);
 void update_level(Space space, bool is_ai);
 void update_score(Player player);
 void display_game_over_message(Player player);
+bool is_same_space(Coordinates *curr, Coordinates *next);
 
 // helper functions
 char int_to_char(int n);
 void set_space_board_display(Space *space);
+// TODO: combine the 2 functions below into 1
 int get_random_num(int min, int max);
-bool random_num_in_allowed(int target, int *arr, size_t arr_len);
+bool random_num_in_allowed(int target, int *arr, size_t arr_len); // TODO: change function name
 
 #endif
