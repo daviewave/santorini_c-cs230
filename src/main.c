@@ -276,16 +276,18 @@ void set_space_board_display(Space *space)
     // if occupied != ' ' set board_display as that and return
     if (space->occupied == 'P' || space->occupied == 'A')
     {
+        printf("\nsegcheck (i)\n");
         space->board_display = space->occupied;
     }
     else
     {
+        printf("\nsegcheck (ii)\n");
         space->board_display = int_to_char(space->level);
     }
 }
 
 //== 3.
-void next_move(Player *player, Coordinates *opp, GameBoard *board)
+int next_move(Player *player, Coordinates *opp, GameBoard *board)
 {
     if (player->name == 'P')
     {
@@ -307,6 +309,7 @@ void next_move(Player *player, Coordinates *opp, GameBoard *board)
         printf("direction: %d", d);
 
         // 4, ensure straight line if diagnol
+        // TODO: idk why i put logic outside the function haha
         if (d == 2 || d == 4 || d == 6 || d == 8)
         {
             // diagnol movement -- must ensure straight line
@@ -324,44 +327,73 @@ void next_move(Player *player, Coordinates *opp, GameBoard *board)
             next_move(player, opp, board);
         }
 
-        //==* At this point its determined to be a valid move
         // 6, change levels on each space in the path, including where player lands
         update_spaces_in_path(d, true, &player->curr, &coords, board);
         next_space->occupied = player->name;
         player->curr = coords;
         set_space_board_display(next_space);
-
-        // printf("\nnew location level: %d \n", next_space->level);
-
-        // 7, set the player->curr = coords +
-
-        // if (not_occupied(next_space) && is_straight_line_movement(&player->curr, &coords) && is_unobstructed_path(&player->curr, &coords, board))
-        // {
-        //     printf("\nhitttting\n");
-        //     // set next_space occupied to player.name
-        //     // set the previous occupied space to '\0'
-        //     // set board displays for both next and previous
-        //     // NOTE: have to determine when levels are updated, prob makes sense to break the unobstructed path to more granular functions so they can be used
-        //     //          for this too
-        // }
-        // printf("\ninvalid movement\n");
-
-        // printf("\nx: %d y: %d", coords.x, coords.y);
-        // printf("\nns bd: %c", next_space->board_display);
-        // printf("\nns level: %d", next_space->level);
-        // printf("\nns bd: %c", next_space->occupied);
-        // printf("\nns bd: %d", next_space->coordinates.x);
-        // printf("\nns bd: %d", next_space->coordinates.y);
-        // validate move
-        // printf("\nns bd: %c", next_space->board_display);
-        // printf("\nns level: %d", next_space->level);
-        // printf("\nns bd: %c", next_space->occupied);
-        // printf("\nns bd: %d", next_space->coordinates.x);
-        // printf("\nns bd: %d", next_space->coordinates.y);
     }
     else
     {
-        // ai automatically selects coords until valid spot is chosen
+        // 1, get random x & y coordinates between 1-6
+        clear_console();
+        print_board(board);
+        int new_x = get_random_num(1, 6);
+        int new_y = get_random_num(1, 6);
+        Coordinates new_coords;
+        new_coords.x = new_x;
+        new_coords.y = new_y;
+
+        if (is_same_space(&player->curr, &new_coords))
+        {
+            return -1;
+            // next_move(player, opp, board);
+        }
+
+        // 2, get allowed directions, get new move direction, validate new move direction
+        IntArray allowed_directions = get_allowed_directions(&player->curr);
+        int xdiff = new_coords.x - player->curr.x;
+        int ydiff = new_coords.y - player->curr.y;
+        int d = get_move_direction(xdiff, ydiff);
+        if (!random_num_in_allowed(d, allowed_directions.data, allowed_directions.len))
+        {
+            return -1;
+            // next_move(player, opp, board);
+        }
+        printf("\naX coord: %d\naY coord: %d \n", new_coords.x, new_coords.y);
+
+        // 3, check occupied
+        Space *next_space = get_board_space(&new_coords, board);
+        if (is_occupied(next_space))
+        {
+            return -1;
+            // next_move(player, opp, board);
+        }
+
+        // 4, if diagnol move, check straight line
+        if (d == 2 || d == 4 || d == 6 || d == 8)
+        {
+            // diagnol movement -- must ensure straight line
+            if (is_not_straight_line_movement(xdiff, ydiff))
+            {
+                return -1;
+                // next_move(player, opp, board);
+            }
+        }
+
+        // 5, check obstruction
+        if (is_obstructed_path(d, &player->curr, &new_coords, opp))
+        {
+            return -1;
+            // next_move(player, opp, board);
+        }
+
+        // 6, change levels on each space in the path, including where player lands
+        update_spaces_in_path(d, false, &player->curr, &new_coords, board);
+        next_space->occupied = player->name;
+        player->curr = new_coords;
+        set_space_board_display(next_space);
+        return 0;
     }
 }
 
@@ -428,7 +460,6 @@ bool is_not_straight_line_movement(int xdiff, int ydiff)
     return true;
 }
 
-// TODO: there
 bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coordinates *opposing_player)
 {
     switch (direction)
@@ -481,6 +512,10 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
 
 void update_spaces_in_path(int direction, bool increase, Coordinates *curr, Coordinates *next, GameBoard *board)
 {
+    printf("\n\nRESTARTING\n\n");
+    Coordinates const n = *next;
+
+    printf("\ndirection: %d\n", direction);
     // 1, using the direction, determine step values
     int x_step, y_step;
     switch (direction)
@@ -529,31 +564,53 @@ void update_spaces_in_path(int direction, bool increase, Coordinates *curr, Coor
     }
 
     // 2, step through each Space in path with loop logic
-    int curr_x = curr->x;
-    int curr_y = curr->y;
     Coordinates curr_coords;
-    Space *curr_space;
+    curr_coords.x = curr->x;
+    curr_coords.y = curr->y;
 
-    while (curr_coords.x != next->x || curr_coords.y != next->y)
+    int counter = 1;
+    do
     {
-        curr_coords.x = curr_x;
-        curr_coords.y = curr_y;
-        // printf("\n\ncurr x: %d \ncurrc y: %d \n\n", curr_coords.x, curr_coords.y);
-        curr_space = get_board_space(&curr_coords, board);
-        if (curr_x == curr->x && curr_y == curr->y)
+        // printf("\npre next X: %d\npre next Y: %d \n", next->x, next->y);
+        printf("\npre next X: %d\npre next Y: %d \n", n.x, n.y);
+        Space *curr_space = get_board_space(&curr_coords, board);
+        printf("\naX: %d\naY: %d \n", curr_space->coordinates.x, curr_space->coordinates.y);
+        // printf("\npost next X: %d\npost next Y: %d \n", next->x, next->y);
+        printf("\npost next X: %d\npost next Y: %d \n", n.x, n.y);
+
+        if (counter == 1)
+        {
             curr_space->occupied = 'N';
+        }
         else
         {
             if (increase)
+            {
                 curr_space->level += 1;
+            }
             else
+            {
                 curr_space->level -= 1;
+            }
         }
-        // printf("\ncurr sp level: %d \n", curr_space->level);
-        curr_x += x_step;
-        curr_y += y_step;
+
+        curr_coords.x += x_step;
+        curr_coords.y += y_step;
+
         set_space_board_display(curr_space);
+        counter++;
+    } while (curr_coords.x != n.x || curr_coords.y != n.y);
+    // } while (curr_coords.x != next->x || curr_coords.y != next->y);
+    printf("\nsegcheck e\n");
+}
+
+bool is_same_space(Coordinates *curr, Coordinates *next)
+{
+    if (curr->x == next->x && curr->y == next->y)
+    {
+        return true;
     }
+    return false;
 }
 
 int main(int argc, char *argv[])
@@ -610,17 +667,17 @@ int main(int argc, char *argv[])
         // print_score();
         print_board(board);
         next_move(&user, &ai.curr, board);
-        // next_move(&ai, board);
+        int res;
+        do
+        {
+            res = next_move(&ai, &user.curr, board);
+        } while (res != 0);
+
+        printf("\n\nresetting function\n\n");
         // check_for_winner()
-
         break;
-
     } while (true);
-
     printf("\n");
     print_board(board);
-
-    // free(board);
-
     return 0;
 }
