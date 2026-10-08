@@ -202,7 +202,7 @@ IntArray get_allowed_directions(Coordinates *user_location)
 
 bool random_num_in_allowed(int target, int *arr, size_t arr_len)
 {
-    for (int i = 0; i < arr_len; i++)
+    for (size_t i = 0; i < arr_len; i++)
     {
         if (arr[i] == target)
         {
@@ -276,12 +276,10 @@ void set_space_board_display(Space *space)
     // if occupied != ' ' set board_display as that and return
     if (space->occupied == 'P' || space->occupied == 'A')
     {
-        printf("\nsegcheck (i)\n");
         space->board_display = space->occupied;
     }
     else
     {
-        printf("\nsegcheck (ii)\n");
         space->board_display = int_to_char(space->level);
     }
 }
@@ -299,7 +297,7 @@ int next_move(Player *player, Coordinates *opp, GameBoard *board)
         if (is_occupied(next_space))
         {
             printf("\n\t(invalid move) -> other player already at this space. must select unoccupied space. \n\n");
-            next_move(player, opp, board);
+            return next_move(player, opp, board);
         }
 
         // 3, determine move direction
@@ -316,7 +314,7 @@ int next_move(Player *player, Coordinates *opp, GameBoard *board)
             if (is_not_straight_line_movement(xdiff, ydiff))
             {
                 printf("\n\t(invalid move) -> only straight line movements allowed. \n\n");
-                next_move(player, opp, board);
+                return next_move(player, opp, board);
             }
         }
 
@@ -324,7 +322,7 @@ int next_move(Player *player, Coordinates *opp, GameBoard *board)
         if (is_obstructed_path(d, &player->curr, &coords, opp))
         {
             printf("\n\t(invalid move) -> opposing play obstructing path to new space entered. \n\n");
-            next_move(player, opp, board);
+            return next_move(player, opp, board);
         }
 
         // 6, change levels on each space in the path, including where player lands
@@ -397,6 +395,11 @@ int next_move(Player *player, Coordinates *opp, GameBoard *board)
     }
 }
 
+void take_turn(Player *player, Coordinates *opp, GameBoard *board)
+{
+    while (next_move(player, opp, board) != 0);
+}
+
 Space *get_board_space(Coordinates *coords, GameBoard *board)
 {
     Space *found = &(*board)[coords->x][coords->y];
@@ -453,13 +456,7 @@ bool is_occupied(Space *space)
 
 bool is_not_straight_line_movement(int xdiff, int ydiff)
 {
-    printf("\nxdf: %d\nydf: %d", xdiff, ydiff);
-    int slope = abs((ydiff) / (xdiff));
-
-    printf("\nslope: %d \n", slope);
-    if (slope == 1)
-        return false;
-    return true;
+    return abs(xdiff) != abs(ydiff);
 }
 
 bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coordinates *opposing_player)
@@ -514,7 +511,6 @@ bool is_obstructed_path(int direction, Coordinates *curr, Coordinates *next, Coo
 
 void update_spaces_in_path(int direction, bool increase, Coordinates *curr, Coordinates *next, GameBoard *board)
 {
-    printf("\n\nRESTARTING\n\n");
     Coordinates const n = *next;
 
     printf("\ndirection: %d\n", direction);
@@ -573,12 +569,7 @@ void update_spaces_in_path(int direction, bool increase, Coordinates *curr, Coor
     int counter = 1;
     do
     {
-        // printf("\npre next X: %d\npre next Y: %d \n", next->x, next->y);
-        printf("\npre next X: %d\npre next Y: %d \n", n.x, n.y);
         Space *curr_space = get_board_space(&curr_coords, board);
-        printf("\naX: %d\naY: %d \n", curr_space->coordinates.x, curr_space->coordinates.y);
-        // printf("\npost next X: %d\npost next Y: %d \n", next->x, next->y);
-        printf("\npost next X: %d\npost next Y: %d \n", n.x, n.y);
 
         if (counter == 1)
         {
@@ -603,16 +594,16 @@ void update_spaces_in_path(int direction, bool increase, Coordinates *curr, Coor
         counter++;
     } while (curr_coords.x != n.x || curr_coords.y != n.y);
     // } while (curr_coords.x != next->x || curr_coords.y != next->y);
-    printf("\nsegcheck e\n");
 }
 
 bool is_same_space(Coordinates *curr, Coordinates *next)
 {
-    if (curr->x == next->x && curr->y == next->y)
-    {
-        return true;
-    }
-    return false;
+    return (curr->x == next->x && curr->y == next->y); 
+    // if (curr->x == next->x && curr->y == next->y)
+    // {
+    //     return true;
+    // }
+    // return false;
 }
 
 int main(int argc, char *argv[])
@@ -637,49 +628,15 @@ int main(int argc, char *argv[])
     starting_ai_space->occupied = ai.name;
     set_space_board_display(starting_ai_space);
 
-    // printf("\nns bd: %c", starting_user_space->board_display);
-    // printf("\nns level: %d", starting_user_space->level);
-    // printf("\nns occupied: %c", starting_user_space->occupied);
-    // printf("\nns cx: %d", starting_user_space->coordinates.x);
-    // printf("\nns cy: %d", starting_user_space->coordinates.y);
-
-    // printf("\nai bd: %c", starting_ai_space->board_display);
-    // printf("\nai level: %d", starting_ai_space->level);
-    // printf("\nai occupied: %c", starting_ai_space->occupied);
-    // printf("\nai cx: %d", starting_ai_space->coordinates.x);
-    // printf("\nai cy: %d", starting_ai_space->coordinates.y);
-
-    // printf("User Player: \n");
-    // printf("\t name -> %c \n", user.name);
-    // printf("\t score -> %d \n", user.score);
-    // printf("\t curr.x -> %d \n", user.curr.x);
-    // printf("\t curr.y -> %d \n", user.curr.y);
-    // printf("\n");
-    // printf("Ai Player: \n");
-    // printf("\t name -> %c \n", ai.name);
-    // printf("\t score -> %d \n", ai.score);
-    // printf("\t curr.x -> %d \n", ai.curr.x);
-    // printf("\t curr.y -> %d \n", ai.curr.y);
-    // printf("\n");
-
-    do
+    char winner = ' ';
+    while(winner == ' ')
     {
-        // keep running until a player has reached score=10
-        // clear_console();
-        // print_score();
         print_board(board);
-        next_move(&user, &ai.curr, board);
-        int res;
-        do
-        {
-            res = next_move(&ai, &user.curr, board);
-        } while (res != 0);
-
-        printf("\n\nresetting function\n\n");
-        // check_for_winner()
-        break;
-    } while (true);
-    printf("\n");
+        take_turn(&user, &ai.curr, board);
+        winner = check_for_winner(board);
+        if (winner != ' ') { break; };
+        take_turn(&ai, &user.curr, board);
+        winner = check_for_winner(board);
+    }
     print_board(board);
-    return 0;
 }

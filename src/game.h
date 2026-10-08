@@ -54,6 +54,7 @@ void set_board_display(Space *space);
 
 // 3.
 int next_move(Player *player, Coordinates *opp, GameBoard *board);
+void take_turn(Player *player, Coordinates *opp, GameBoard *board);
 Space *get_board_space(Coordinates *coords, GameBoard *board);
 void print_score(Player *user, Player *ai);
 int get_move_direction(int xdiff, int ydiff);
