@@ -51,13 +51,9 @@
 
 static void initialize_board(int board[][BOARD_SIZE]);
 static int count_level(int board[][BOARD_SIZE], int level);
-static int game_result(int board[][BOARD_SIZE]);
 static void copy_board(int source[][BOARD_SIZE], int destination[][BOARD_SIZE]);
-static int score_ai_move(int board[][BOARD_SIZE], int to_row, int to_col, const int player[2]);
-static void choose_ai_move(int board[][BOARD_SIZE], const int ai[2], const int player[2],
-                           int chosen[2]);
-static int is_occupied_by(const int builder[2], int row, int col);
 static int is_on_board(int row, int col);
+static int is_occupied_by(const int builder[2], int row, int col);
 static int is_adjacent(int from_row, int from_col, int to_row, int to_col);
 static int classify_move(const int from[2], int to_row, int to_col, const int other[2]);
 static int clamp_level(int level);
@@ -67,6 +63,11 @@ static void update_rays(int board[][BOARD_SIZE], int row, int col, int delta,
                         const int blocker[2]);
 static void move_builder(int board[][BOARD_SIZE], int builder[2], int to_row, int to_col,
                          int delta, const int other[2]);
+static int game_result(int board[][BOARD_SIZE]);
+static int score_ai_move(int board[][BOARD_SIZE], int to_row, int to_col, const int player[2]);
+static void choose_ai_move(int board[][BOARD_SIZE], const int ai[2], const int player[2],
+                           int chosen[2]);
+static void choose_ai_start(const int player[2], int chosen[2]);
 static char cell_character(int board[][BOARD_SIZE], int row, int col,
                            const int player[2], const int ai[2]);
 static void print_board(int board[][BOARD_SIZE], const int player[2], const int ai[2]);
@@ -79,13 +80,14 @@ static void print_number_hint(void);
 static void explain_invalid_move(int reason, int row, int col);
 static int place_typed_start(int player[2], const int typed[2]);
 static int prompt_player_start(int player[2]);
-static void choose_ai_start(const int player[2], int chosen[2]);
 static int apply_typed_move(int board[][BOARD_SIZE], int player[2], const int ai[2],
                             const int typed[2]);
 static int prompt_player_move(int board[][BOARD_SIZE], int player[2], const int ai[2]);
 static void play_ai_turn(int board[][BOARD_SIZE], int ai[2], const int player[2]);
 static int end_of_input(void);
 static void announce_result(int result);
+
+/* ---- Board ---- */
 
 /* Sets every space of the board to the starting level. */
 static void initialize_board(int board[][BOARD_SIZE]) {
@@ -109,6 +111,101 @@ static int count_level(int board[][BOARD_SIZE], int level) {
     return count;
 }
 
+/* Copies every level from source into destination. */
+static void copy_board(int source[][BOARD_SIZE], int destination[][BOARD_SIZE]) {
+    for (int row = 0; row < BOARD_SIZE; row++) {
+        for (int col = 0; col < BOARD_SIZE; col++) {
+            destination[row][col] = source[row][col];
+        }
+    }
+}
+
+/* ---- Geometry and move legality ---- */
+
+/* Reports whether (row, col) is inside the 0-based board. */
+static int is_on_board(int row, int col) {
+    return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
+}
+
+/* Reports whether the builder stands on (row, col). */
+static int is_occupied_by(const int builder[2], int row, int col) {
+    return builder[ROW] == row && builder[COL] == col;
+}
+
+/* Reports whether the two spaces are distinct octagonal (king-move) neighbours. */
+static int is_adjacent(int from_row, int from_col, int to_row, int to_col) {
+    int row_distance = abs(to_row - from_row);
+    int col_distance = abs(to_col - from_col);
+    return row_distance <= 1 && col_distance <= 1 && row_distance + col_distance > 0;
+}
+
+/* Judges a move of the builder at from to (to_row, to_col) while the other
+ * builder stands at other. Returns MOVE_OK or the first failing MOVE_* reason. */
+static int classify_move(const int from[2], int to_row, int to_col, const int other[2]) {
+    if (!is_on_board(to_row, to_col)) {
+        return MOVE_OFF_BOARD;
+    }
+    if (is_occupied_by(from, to_row, to_col)) {
+        return MOVE_SAME_SPACE;
+    }
+    if (!is_adjacent(from[ROW], from[COL], to_row, to_col)) {
+        return MOVE_NOT_ADJACENT;
+    }
+    if (is_occupied_by(other, to_row, to_col)) {
+        return MOVE_OCCUPIED;
+    }
+    return MOVE_OK;
+}
+
+/* ---- Building levels ---- */
+
+/* Pins a level into the legal range LEVEL_MIN..LEVEL_MAX. */
+static int clamp_level(int level) {
+    if (level < LEVEL_MIN) {
+        return LEVEL_MIN;
+    }
+    if (level > LEVEL_MAX) {
+        return LEVEL_MAX;
+    }
+    return level;
+}
+
+/* Changes by delta every space on one ray out of (row, col), excluding
+ * (row, col) itself, stopping at the board edge or just before the blocker. */
+static void update_ray(int board[][BOARD_SIZE], int row, int col, int row_step, int col_step,
+                       int delta, const int blocker[2]) {
+    int ray_row = row + row_step;
+    int ray_col = col + col_step;
+    while (is_on_board(ray_row, ray_col) && !is_occupied_by(blocker, ray_row, ray_col)) {
+        board[ray_row][ray_col] = clamp_level(board[ray_row][ray_col] + delta);
+        ray_row += row_step;
+        ray_col += col_step;
+    }
+}
+
+/* Applies update_ray in all eight octagonal directions from (row, col). */
+static void update_rays(int board[][BOARD_SIZE], int row, int col, int delta,
+                        const int blocker[2]) {
+    for (int row_step = -1; row_step <= 1; row_step++) {
+        for (int col_step = -1; col_step <= 1; col_step++) {
+            if (row_step != 0 || col_step != 0) {
+                update_ray(board, row, col, row_step, col_step, delta, blocker);
+            }
+        }
+    }
+}
+
+/* Moves the builder to (to_row, to_col) and updates the levels along its rays,
+ * which the other builder may block. */
+static void move_builder(int board[][BOARD_SIZE], int builder[2], int to_row, int to_col,
+                         int delta, const int other[2]) {
+    builder[ROW] = to_row;
+    builder[COL] = to_col;
+    update_rays(board, to_row, to_col, delta, other);
+}
+
+/* ---- End of the game ---- */
+
 /* Decides the end state: RESULT_PLAYER with WIN_COUNT spaces at LEVEL_MAX,
  * RESULT_AI with WIN_COUNT spaces at LEVEL_MIN, RESULT_DRAW with both at
  * once, else RESULT_NONE. */
@@ -127,14 +224,7 @@ static int game_result(int board[][BOARD_SIZE]) {
     return RESULT_NONE;
 }
 
-/* Copies every level from source into destination. */
-static void copy_board(int source[][BOARD_SIZE], int destination[][BOARD_SIZE]) {
-    for (int row = 0; row < BOARD_SIZE; row++) {
-        for (int col = 0; col < BOARD_SIZE; col++) {
-            destination[row][col] = source[row][col];
-        }
-    }
-}
+/* ---- The AI ---- */
 
 /* Scores an AI move to (to_row, to_col) by simulating it on a copy of the
  * board: spaces dropped to 0 count most, then 4 -> 3 drops, then any lowered
@@ -182,85 +272,17 @@ static void choose_ai_move(int board[][BOARD_SIZE], const int ai[2], const int p
     }
 }
 
-/* Reports whether the builder stands on (row, col). */
-static int is_occupied_by(const int builder[2], int row, int col) {
-    return builder[ROW] == row && builder[COL] == col;
-}
-
-/* Reports whether (row, col) is inside the 0-based board. */
-static int is_on_board(int row, int col) {
-    return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
-}
-
-/* Reports whether the two spaces are distinct octagonal (king-move) neighbours. */
-static int is_adjacent(int from_row, int from_col, int to_row, int to_col) {
-    int row_distance = abs(to_row - from_row);
-    int col_distance = abs(to_col - from_col);
-    return row_distance <= 1 && col_distance <= 1 && row_distance + col_distance > 0;
-}
-
-/* Judges a move of the builder at from to (to_row, to_col) while the other
- * builder stands at other. Returns MOVE_OK or the first failing MOVE_* reason. */
-static int classify_move(const int from[2], int to_row, int to_col, const int other[2]) {
-    if (!is_on_board(to_row, to_col)) {
-        return MOVE_OFF_BOARD;
-    }
-    if (is_occupied_by(from, to_row, to_col)) {
-        return MOVE_SAME_SPACE;
-    }
-    if (!is_adjacent(from[ROW], from[COL], to_row, to_col)) {
-        return MOVE_NOT_ADJACENT;
-    }
-    if (is_occupied_by(other, to_row, to_col)) {
-        return MOVE_OCCUPIED;
-    }
-    return MOVE_OK;
-}
-
-/* Pins a level into the legal range LEVEL_MIN..LEVEL_MAX. */
-static int clamp_level(int level) {
-    if (level < LEVEL_MIN) {
-        return LEVEL_MIN;
-    }
-    if (level > LEVEL_MAX) {
-        return LEVEL_MAX;
-    }
-    return level;
-}
-
-/* Changes by delta every space on one ray out of (row, col), excluding
- * (row, col) itself, stopping at the board edge or just before the blocker. */
-static void update_ray(int board[][BOARD_SIZE], int row, int col, int row_step, int col_step,
-                       int delta, const int blocker[2]) {
-    int ray_row = row + row_step;
-    int ray_col = col + col_step;
-    while (is_on_board(ray_row, ray_col) && !is_occupied_by(blocker, ray_row, ray_col)) {
-        board[ray_row][ray_col] = clamp_level(board[ray_row][ray_col] + delta);
-        ray_row += row_step;
-        ray_col += col_step;
+/* Starts the AI directly right of the player, or directly left when the
+ * player chose the last column; one of the two always exists. */
+static void choose_ai_start(const int player[2], int chosen[2]) {
+    chosen[ROW] = player[ROW];
+    chosen[COL] = player[COL] + 1;
+    if (!is_on_board(chosen[ROW], chosen[COL])) {
+        chosen[COL] = player[COL] - 1;
     }
 }
 
-/* Applies update_ray in all eight octagonal directions from (row, col). */
-static void update_rays(int board[][BOARD_SIZE], int row, int col, int delta,
-                        const int blocker[2]) {
-    for (int row_step = -1; row_step <= 1; row_step++) {
-        for (int col_step = -1; col_step <= 1; col_step++) {
-            if (row_step != 0 || col_step != 0) {
-                update_ray(board, row, col, row_step, col_step, delta, blocker);
-            }
-        }
-    }
-}
-
-/* Moves the builder to (to_row, to_col) and updates the levels along its rays,
- * which the other builder may block. */
-static void move_builder(int board[][BOARD_SIZE], int builder[2], int to_row, int to_col,
-                         int delta, const int other[2]) {
-    builder[ROW] = to_row;
-    builder[COL] = to_col;
-    update_rays(board, to_row, to_col, delta, other);
-}
+/* ---- Display ---- */
 
 /* Gives the character shown for one space: a builder symbol or the level digit. */
 static char cell_character(int board[][BOARD_SIZE], int row, int col,
@@ -302,6 +324,8 @@ static void show_state(int board[][BOARD_SIZE], const int player[2], const int a
     print_score(board);
 }
 
+/* ---- Input ---- */
+
 /* Throws away the rest of the current input line, including the newline. */
 static void discard_rest_of_line(void) {
     int character = getchar();
@@ -328,6 +352,8 @@ static int read_coordinates(int typed[2]) {
     typed[COL] = col;
     return INPUT_OK;
 }
+
+/* ---- Messages and turns ---- */
 
 /* Prints the one-time rules summary. */
 static void print_welcome(void) {
@@ -396,16 +422,6 @@ static int prompt_player_start(int player[2]) {
     return 1;
 }
 
-/* Starts the AI directly right of the player, or directly left when the
- * player chose the last column; one of the two always exists. */
-static void choose_ai_start(const int player[2], int chosen[2]) {
-    chosen[ROW] = player[ROW];
-    chosen[COL] = player[COL] + 1;
-    if (!is_on_board(chosen[ROW], chosen[COL])) {
-        chosen[COL] = player[COL] - 1;
-    }
-}
-
 /* Applies the typed 1-based move when it is legal, else explains why not.
  * Returns 1 when the builder moved. */
 static int apply_typed_move(int board[][BOARD_SIZE], int player[2], const int ai[2],
@@ -472,6 +488,8 @@ static void announce_result(int result) {
         break;
     }
 }
+
+/* ---- Entry point ---- */
 
 /* Sets up the board and both builders, then alternates player and AI turns
  * until the game ends. */
