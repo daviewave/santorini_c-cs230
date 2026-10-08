@@ -8,10 +8,11 @@ if [ ! -x build/Santorini ] || ! ls build/test/test_* >/dev/null 2>&1; then
 fi
 
 status=0
-mkdir -p build/test
+mkdir -p build/logs
 
 for test_binary in build/test/test_*; do
-    log="build/test/$(basename "$test_binary").log"
+    [ -x "$test_binary" ] || continue
+    log="build/logs/$(basename "$test_binary").log"
     if "$test_binary" 2>"$log"; then
         echo "PASS $test_binary ($(tail -n 1 "$log"))"
     else
