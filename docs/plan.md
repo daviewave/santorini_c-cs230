@@ -23,6 +23,36 @@
 - Compiles with `gcc -std=c99 -Wall` alone (the course VM) and with the full warning set as errors.
 - Commits: conventional-commit subjects, one per task, never push, no AI-assistance mentions anywhere.
 
+## Executed order (what actually happened)
+
+The task list below was written before implementation. Executing it exposed
+one constraint the plan had missed: under `-Werror`, a `static` function that
+nothing calls yet fails the release build (`-Wunused-function`), so a task
+that adds pure helpers without wiring them into `main` cannot be committed on
+its own. The tasks were therefore executed in an order where `main` grows with
+every commit, each commit building, analysing and testing clean:
+
+- [x] Task 1 scaffold (commit `build: scaffold Makefile, test harness and README skeleton`)
+- [x] Task 2 board, counting, display (`feat: board initialisation, level counting and spec-layout display`)
+- [x] Task 7 + half of Task 8 + `choose_ai_start` from Task 6: input, start placement, AI start
+  (`feat: row-column input, start placement and the AI start`)
+- [x] Task 3 + Task 4 + the move prompt from Task 8: legality, rays, `prompt_player_move`
+  (`feat: move legality, octagonal ray updates and the player's move prompt`)
+- [x] Task 5 + `announce_result`: (`feat: win, loss and draw detection with the result line`)
+- [x] Task 6 + `play_ai_turn` + the alternating loop in `main`
+  (`feat: deterministic greedy AI and alternating turns`)
+- [x] Task 8 transcripts, plus a `MOVE_SAME_SPACE` reason the spec's text asked for
+  (`test: transcripts for the spec example, invalid inputs and end of input`)
+- [x] `refactor: group functions by concern` (pure reorder into section banners)
+- [x] Task 9 (`test: complete-game transcripts and result assertions for both outcomes`)
+- [x] Task 10 README and docs
+
+Two expected values in the plan's AI tests were wrong and were corrected
+against hand-traced rays before the implementation was touched: the player's
+builder blocks the south-east ray from (2,2) (18 lowered, not 19), and a
+space already at level 0 is not "lowered". The AI start rule in Task 6 is as
+planned (right, else left).
+
 ## Review Focus
 
 1. A ray blocked by the other builder must stop there and the landing space must never change level (spec example P (1,2)->(2,3) with A at (1,3)). Pinned in Task 4 (`test_spec_example_after_move_to_2_3`, `test_ray_stops_before_blocker`, `test_landing_space_unchanged`).
