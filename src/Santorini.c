@@ -32,6 +32,12 @@
 #define PLAYER_DELTA 1
 #define AI_DELTA (-1)
 
+/* End states reported by game_result. */
+#define RESULT_NONE 0
+#define RESULT_PLAYER 1
+#define RESULT_AI 2
+#define RESULT_DRAW 3
+
 /* Outcomes of reading one input line. */
 #define INPUT_END 0
 #define INPUT_OK 1
@@ -39,6 +45,7 @@
 
 static void initialize_board(int board[][BOARD_SIZE]);
 static int count_level(int board[][BOARD_SIZE], int level);
+static int game_result(int board[][BOARD_SIZE]);
 static int is_occupied_by(const int builder[2], int row, int col);
 static int is_on_board(int row, int col);
 static int is_adjacent(int from_row, int from_col, int to_row, int to_col);
@@ -67,6 +74,7 @@ static int apply_typed_move(int board[][BOARD_SIZE], int player[2], const int ai
                             const int typed[2]);
 static int prompt_player_move(int board[][BOARD_SIZE], int player[2], const int ai[2]);
 static int end_of_input(void);
+static void announce_result(int result);
 
 /* Sets every space of the board to the starting level. */
 static void initialize_board(int board[][BOARD_SIZE]) {
@@ -88,6 +96,24 @@ static int count_level(int board[][BOARD_SIZE], int level) {
         }
     }
     return count;
+}
+
+/* Decides the end state: RESULT_PLAYER with WIN_COUNT spaces at LEVEL_MAX,
+ * RESULT_AI with WIN_COUNT spaces at LEVEL_MIN, RESULT_DRAW with both at
+ * once, else RESULT_NONE. */
+static int game_result(int board[][BOARD_SIZE]) {
+    int player_won = count_level(board, LEVEL_MAX) >= WIN_COUNT;
+    int ai_won = count_level(board, LEVEL_MIN) >= WIN_COUNT;
+    if (player_won && ai_won) {
+        return RESULT_DRAW;
+    }
+    if (player_won) {
+        return RESULT_PLAYER;
+    }
+    if (ai_won) {
+        return RESULT_AI;
+    }
+    return RESULT_NONE;
 }
 
 /* Reports whether the builder stands on (row, col). */
@@ -351,12 +377,28 @@ static int end_of_input(void) {
     return EXIT_SUCCESS;
 }
 
-/* Sets up the board and both builders, then takes the player's moves;
- * the AI's turns and the end of the game arrive in later tasks. */
+/* Prints the final line naming the winner, or the draw. */
+static void announce_result(int result) {
+    switch (result) {
+    case RESULT_PLAYER:
+        printf("Player wins!\n");
+        break;
+    case RESULT_AI:
+        printf("AI wins!\n");
+        break;
+    default:
+        printf("Draw!\n");
+        break;
+    }
+}
+
+/* Sets up the board and both builders, then takes the player's moves until
+ * the game ends; the AI's turns arrive in the next task. */
 int main(void) {
     int board[BOARD_SIZE][BOARD_SIZE];
     int player[2] = {OFF_BOARD, OFF_BOARD};
     int ai[2] = {OFF_BOARD, OFF_BOARD};
+    int result = RESULT_NONE;
 
     initialize_board(board);
     print_welcome();
@@ -367,7 +409,12 @@ int main(void) {
     choose_ai_start(player, ai);
     printf("AI starts at (%d, %d).\n", ai[ROW] + 1, ai[COL] + 1);
     show_state(board, player, ai);
-    while (prompt_player_move(board, player, ai)) {
+    while (result == RESULT_NONE) {
+        if (!prompt_player_move(board, player, ai)) {
+            return end_of_input();
+        }
+        result = game_result(board);
     }
-    return end_of_input();
+    announce_result(result);
+    return EXIT_SUCCESS;
 }

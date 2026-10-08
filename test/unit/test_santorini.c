@@ -492,6 +492,64 @@ static void test_prompt_player_move_reports_end_of_input(void) {
     CHECK_EQ_INT(count_level(board, START_LEVEL), BOARD_SIZE * BOARD_SIZE);
 }
 
+/* Sets the first how_many spaces in row-major order to level. */
+static void fill_count(int board[][BOARD_SIZE], int level, int how_many) {
+    for (int index = 0; index < how_many; index++) {
+        board[index / BOARD_SIZE][index % BOARD_SIZE] = level;
+    }
+}
+
+static void test_game_result_none_until_ten(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    initialize_board(board);
+    CHECK_EQ_INT(game_result(board), RESULT_NONE);
+    fill_count(board, LEVEL_MAX, 9);
+    CHECK_EQ_INT(game_result(board), RESULT_NONE);
+    initialize_board(board);
+    fill_count(board, LEVEL_MIN, 9);
+    CHECK_EQ_INT(game_result(board), RESULT_NONE);
+}
+
+static void test_game_result_player_and_ai_wins(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    initialize_board(board);
+    fill_count(board, LEVEL_MAX, 10);
+    CHECK_EQ_INT(game_result(board), RESULT_PLAYER);
+    fill_count(board, LEVEL_MAX, 36);
+    CHECK_EQ_INT(game_result(board), RESULT_PLAYER);
+    initialize_board(board);
+    fill_count(board, LEVEL_MIN, 10);
+    CHECK_EQ_INT(game_result(board), RESULT_AI);
+    fill_count(board, LEVEL_MIN, 36);
+    CHECK_EQ_INT(game_result(board), RESULT_AI);
+}
+
+static void test_game_result_draw_when_both_reach_ten(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    initialize_board(board);
+    fill_count(board, LEVEL_MIN, 10);
+    for (int index = 10; index < 20; index++) {
+        board[index / BOARD_SIZE][index % BOARD_SIZE] = LEVEL_MAX;
+    }
+    CHECK_EQ_INT(game_result(board), RESULT_DRAW);
+}
+
+static void test_announce_result_lines(void) {
+    char text[128] = "";
+    capture_stdout_begin();
+    announce_result(RESULT_PLAYER);
+    capture_stdout_end(text, sizeof text);
+    CHECK_EQ_STR(text, "Player wins!\n");
+    capture_stdout_begin();
+    announce_result(RESULT_AI);
+    capture_stdout_end(text, sizeof text);
+    CHECK_EQ_STR(text, "AI wins!\n");
+    capture_stdout_begin();
+    announce_result(RESULT_DRAW);
+    capture_stdout_end(text, sizeof text);
+    CHECK_EQ_STR(text, "Draw!\n");
+}
+
 int main(void) {
     test_initialize_board_sets_every_space_to_start_level();
     test_count_level_counts_only_matching_spaces();
@@ -528,5 +586,9 @@ int main(void) {
     test_apply_typed_move_moves_or_explains();
     test_prompt_player_move_reprompts_then_shows_state();
     test_prompt_player_move_reports_end_of_input();
+    test_game_result_none_until_ten();
+    test_game_result_player_and_ai_wins();
+    test_game_result_draw_when_both_reach_ten();
+    test_announce_result_lines();
     CHECK_REPORT("test_santorini");
 }
