@@ -271,6 +271,13 @@ static void test_choose_ai_start_is_always_adjacent_and_on_board(void) {
         }
     }
 }
+static void test_distance_is_never_negative(void) {
+    CHECK_EQ_INT(distance(2, 5), 3);
+    CHECK_EQ_INT(distance(5, 2), 3);
+    CHECK_EQ_INT(distance(4, 4), 0);
+    CHECK_EQ_INT(distance(-1, 0), 1);
+}
+
 static void test_is_adjacent_is_king_move(void) {
     CHECK(is_adjacent(2, 2, 1, 1));
     CHECK(is_adjacent(2, 2, 1, 2));
@@ -477,6 +484,7 @@ static void test_prompt_player_move_reprompts_then_shows_state(void) {
     capture_stdout_end(text, sizeof text);
     CHECK(strstr(text, "(1, 3) is occupied") != NULL);
     CHECK(strstr(text, "Please enter two numbers") != NULL);
+    CHECK(strstr(text, "You move to (2, 3).\n   1 2 3 4 5 6\n") != NULL);
     CHECK(strstr(text, "2  3 3 P 3 3 3\n") != NULL);
     CHECK_EQ_INT(player[ROW], 1);
 }
@@ -707,6 +715,7 @@ int main(void) {
     test_prompt_player_start_reports_end_of_input();
     test_choose_ai_start_right_then_left();
     test_choose_ai_start_is_always_adjacent_and_on_board();
+    test_distance_is_never_negative();
     test_is_adjacent_is_king_move();
     test_classify_move_off_board();
     test_classify_move_spec_example();

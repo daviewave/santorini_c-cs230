@@ -43,6 +43,9 @@
  * no count can exceed the 35 other spaces, so the keys never overlap. */
 #define SCORE_TO_ZERO 10000
 #define SCORE_FROM_FOUR 100
+/* Below every real score (scores are never negative), so the first legal
+ * candidate always replaces it. */
+#define NO_SCORE (-1)
 
 /* Outcomes of reading one input line. */
 #define INPUT_END 0
@@ -54,6 +57,7 @@ static int count_level(int board[][BOARD_SIZE], int level);
 static void copy_board(int source[][BOARD_SIZE], int destination[][BOARD_SIZE]);
 static int is_on_board(int row, int col);
 static int is_occupied_by(const int builder[2], int row, int col);
+static int distance(int from, int to);
 static int is_adjacent(int from_row, int from_col, int to_row, int to_col);
 static int classify_move(const int from[2], int to_row, int to_col, const int other[2]);
 static int clamp_level(int level);
@@ -132,10 +136,15 @@ static int is_occupied_by(const int builder[2], int row, int col) {
     return builder[ROW] == row && builder[COL] == col;
 }
 
+/* Gives the non-negative number of steps between two row or column indexes. */
+static int distance(int from, int to) {
+    return to >= from ? to - from : from - to;
+}
+
 /* Reports whether the two spaces are distinct octagonal (king-move) neighbours. */
 static int is_adjacent(int from_row, int from_col, int to_row, int to_col) {
-    int row_distance = abs(to_row - from_row);
-    int col_distance = abs(to_col - from_col);
+    int row_distance = distance(from_row, to_row);
+    int col_distance = distance(from_col, to_col);
     return row_distance <= 1 && col_distance <= 1 && row_distance + col_distance > 0;
 }
 
@@ -257,7 +266,7 @@ static int score_ai_move(int board[][BOARD_SIZE], int to_row, int to_col, const 
  * two free neighbours, so a move always exists. */
 static void choose_ai_move(int board[][BOARD_SIZE], const int ai[2], const int player[2],
                            int chosen[2]) {
-    int best_score = -1;
+    int best_score = NO_SCORE;
     for (int row = ai[ROW] - 1; row <= ai[ROW] + 1; row++) {
         for (int col = ai[COL] - 1; col <= ai[COL] + 1; col++) {
             if (classify_move(ai, row, col, player) == MOVE_OK) {
@@ -338,7 +347,7 @@ static void discard_rest_of_line(void) {
  * Returns INPUT_OK, INPUT_NOT_NUMBERS (the line was not two numbers) or
  * INPUT_END (no more input). */
 static int read_coordinates(int typed[2]) {
-    int row = OFF_BOARD;
+    int row = OFF_BOARD;   /* scanf leaves these untouched when it fails */
     int col = OFF_BOARD;
     int read_count = scanf("%d %d", &row, &col);
     if (read_count == EOF) {
@@ -358,7 +367,8 @@ static int read_coordinates(int typed[2]) {
 /* Prints the one-time rules summary. */
 static void print_welcome(void) {
     printf("Santorini (230 version). You are %c, the AI is %c.\n", PLAYER_SYMBOL, AI_SYMBOL);
-    printf("Moving raises (you) or lowers (AI) every space on the eight lines from the new space.\n");
+    printf("Moving raises (you) or lowers (AI) every space on the eight lines "
+           "from the new space.\n");
     printf("You win with %d spaces at level %d; the AI wins with %d spaces at level %d.\n\n",
            WIN_COUNT, LEVEL_MAX, WIN_COUNT, LEVEL_MIN);
 }
@@ -381,6 +391,7 @@ static void explain_invalid_move(int reason, int row, int col) {
     case MOVE_NOT_ADJACENT:
         printf("Invalid move: (%d, %d) is not adjacent to your builder.\n", row, col);
         break;
+    case MOVE_OCCUPIED:
     default:
         printf("Invalid move: (%d, %d) is occupied by the AI's builder.\n", row, col);
         break;
@@ -455,6 +466,7 @@ static int prompt_player_move(int board[][BOARD_SIZE], int player[2], const int 
             moved = apply_typed_move(board, player, ai, typed);
         }
     }
+    printf("You move to (%d, %d).\n", player[ROW] + 1, player[COL] + 1);
     show_state(board, player, ai);
     return 1;
 }
@@ -483,6 +495,7 @@ static void announce_result(int result) {
     case RESULT_AI:
         printf("AI wins!\n");
         break;
+    case RESULT_DRAW:
     default:
         printf("Draw!\n");
         break;

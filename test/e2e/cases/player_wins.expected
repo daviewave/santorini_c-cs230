@@ -21,7 +21,8 @@ Choose the starting space for your builder (row column): AI starts at (1, 2).
 6  2 2 2 2 2 2
 Level-4 spaces (Player): 0   Level-0 spaces (AI): 0
 
-Your move (row column):    1 2 3 4 5 6
+Your move (row column): You move to (2, 2).
+   1 2 3 4 5 6
 1  3 A 3 2 2 2
 2  3 P 3 3 3 3
 3  3 3 3 2 2 2
@@ -40,7 +41,8 @@ AI moves to (2, 3).
 6  2 3 1 2 2 3
 Level-4 spaces (Player): 0   Level-0 spaces (AI): 0
 
-Your move (row column):    1 2 3 4 5 6
+Your move (row column): You move to (3, 3).
+   1 2 3 4 5 6
 1  4 1 2 1 3 2
 2  3 3 A 3 2 2
 3  4 3 P 2 3 3
@@ -59,7 +61,8 @@ AI moves to (3, 4).
 6  1 3 2 1 2 4
 Level-4 spaces (Player): 5   Level-0 spaces (AI): 4
 
-Your move (row column):    1 2 3 4 5 6
+Your move (row column): You move to (4, 2).
+   1 2 3 4 5 6
 1  4 1 2 0 4 1
 2  3 4 2 3 1 2
 3  4 4 3 A 2 2
