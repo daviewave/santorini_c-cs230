@@ -38,6 +38,11 @@
 #define RESULT_AI 2
 #define RESULT_DRAW 3
 
+/* Weights that turn the AI's three move counts into one lexicographic score;
+ * no count can exceed the 35 other spaces, so the keys never overlap. */
+#define SCORE_TO_ZERO 10000
+#define SCORE_FROM_FOUR 100
+
 /* Outcomes of reading one input line. */
 #define INPUT_END 0
 #define INPUT_OK 1
@@ -46,6 +51,10 @@
 static void initialize_board(int board[][BOARD_SIZE]);
 static int count_level(int board[][BOARD_SIZE], int level);
 static int game_result(int board[][BOARD_SIZE]);
+static void copy_board(int source[][BOARD_SIZE], int destination[][BOARD_SIZE]);
+static int score_ai_move(int board[][BOARD_SIZE], int to_row, int to_col, const int player[2]);
+static void choose_ai_move(int board[][BOARD_SIZE], const int ai[2], const int player[2],
+                           int chosen[2]);
 static int is_occupied_by(const int builder[2], int row, int col);
 static int is_on_board(int row, int col);
 static int is_adjacent(int from_row, int from_col, int to_row, int to_col);
@@ -73,6 +82,7 @@ static void choose_ai_start(const int player[2], int chosen[2]);
 static int apply_typed_move(int board[][BOARD_SIZE], int player[2], const int ai[2],
                             const int typed[2]);
 static int prompt_player_move(int board[][BOARD_SIZE], int player[2], const int ai[2]);
+static void play_ai_turn(int board[][BOARD_SIZE], int ai[2], const int player[2]);
 static int end_of_input(void);
 static void announce_result(int result);
 
@@ -114,6 +124,61 @@ static int game_result(int board[][BOARD_SIZE]) {
         return RESULT_AI;
     }
     return RESULT_NONE;
+}
+
+/* Copies every level from source into destination. */
+static void copy_board(int source[][BOARD_SIZE], int destination[][BOARD_SIZE]) {
+    for (int row = 0; row < BOARD_SIZE; row++) {
+        for (int col = 0; col < BOARD_SIZE; col++) {
+            destination[row][col] = source[row][col];
+        }
+    }
+}
+
+/* Scores an AI move to (to_row, to_col) by simulating it on a copy of the
+ * board: spaces dropped to 0 count most, then 4 -> 3 drops, then any lowered
+ * space (see README.txt, "AI strategy"). */
+static int score_ai_move(int board[][BOARD_SIZE], int to_row, int to_col, const int player[2]) {
+    int trial[BOARD_SIZE][BOARD_SIZE];
+    int dropped_to_zero = 0;
+    int dropped_from_four = 0;
+    int lowered = 0;
+    copy_board(board, trial);
+    update_rays(trial, to_row, to_col, AI_DELTA, player);
+    for (int row = 0; row < BOARD_SIZE; row++) {
+        for (int col = 0; col < BOARD_SIZE; col++) {
+            if (trial[row][col] < board[row][col]) {
+                lowered++;
+                if (trial[row][col] == LEVEL_MIN) {
+                    dropped_to_zero++;
+                }
+                if (board[row][col] == LEVEL_MAX) {
+                    dropped_from_four++;
+                }
+            }
+        }
+    }
+    return SCORE_TO_ZERO * dropped_to_zero + SCORE_FROM_FOUR * dropped_from_four + lowered;
+}
+
+/* Picks the legal neighbour of ai with the highest score into chosen; ties go
+ * to the first candidate in row-major scan order. Every space has at least
+ * two free neighbours, so a move always exists. */
+static void choose_ai_move(int board[][BOARD_SIZE], const int ai[2], const int player[2],
+                           int chosen[2]) {
+    int best_score = -1;
+    for (int row = ai[ROW] - 1; row <= ai[ROW] + 1; row++) {
+        for (int col = ai[COL] - 1; col <= ai[COL] + 1; col++) {
+            if (classify_move(ai, row, col, player) == MOVE_OK) {
+                int score = score_ai_move(board, row, col, player);
+                if (score > best_score) {
+                    best_score = score;
+                    chosen[ROW] = row;
+                    chosen[COL] = col;
+                }
+            }
+        }
+    }
 }
 
 /* Reports whether the builder stands on (row, col). */
@@ -371,6 +436,15 @@ static int prompt_player_move(int board[][BOARD_SIZE], int player[2], const int 
     return 1;
 }
 
+/* Lets the AI choose and make its move, then shows the result. */
+static void play_ai_turn(int board[][BOARD_SIZE], int ai[2], const int player[2]) {
+    int chosen[2] = {OFF_BOARD, OFF_BOARD};
+    choose_ai_move(board, ai, player, chosen);
+    move_builder(board, ai, chosen[ROW], chosen[COL], AI_DELTA, player);
+    printf("AI moves to (%d, %d).\n", chosen[ROW] + 1, chosen[COL] + 1);
+    show_state(board, player, ai);
+}
+
 /* Reports that the input ended before the game did. @return the exit status */
 static int end_of_input(void) {
     printf("\nEnd of input: the game was abandoned.\n");
@@ -392,8 +466,8 @@ static void announce_result(int result) {
     }
 }
 
-/* Sets up the board and both builders, then takes the player's moves until
- * the game ends; the AI's turns arrive in the next task. */
+/* Sets up the board and both builders, then alternates player and AI turns
+ * until the game ends. */
 int main(void) {
     int board[BOARD_SIZE][BOARD_SIZE];
     int player[2] = {OFF_BOARD, OFF_BOARD};
@@ -414,6 +488,10 @@ int main(void) {
             return end_of_input();
         }
         result = game_result(board);
+        if (result == RESULT_NONE) {
+            play_ai_turn(board, ai, player);
+            result = game_result(board);
+        }
     }
     announce_result(result);
     return EXIT_SUCCESS;

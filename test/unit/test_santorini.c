@@ -550,6 +550,139 @@ static void test_announce_result_lines(void) {
     CHECK_EQ_STR(text, "Draw!\n");
 }
 
+static void test_copy_board_copies_every_space(void) {
+    int source[BOARD_SIZE][BOARD_SIZE];
+    int copy[BOARD_SIZE][BOARD_SIZE];
+    initialize_board(source);
+    source[0][0] = 4;
+    source[5][5] = 0;
+    copy_board(source, copy);
+    CHECK_EQ_INT(copy[0][0], 4);
+    CHECK_EQ_INT(copy[5][5], 0);
+    CHECK_EQ_INT(count_level(copy, START_LEVEL), 34);
+    copy[1][1] = 0;
+    CHECK_EQ_INT(source[1][1], START_LEVEL);
+}
+
+static void test_score_ai_move_keys(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    int player[2] = {5, 5};
+    initialize_board(board);
+    board[0][1] = 1;
+    board[0][2] = 4;
+    board[1][0] = 0;
+    CHECK_EQ_INT(score_ai_move(board, 0, 0, player),
+                 SCORE_TO_ZERO * 1 + SCORE_FROM_FOUR * 1 + 13);
+}
+
+static void test_score_ai_move_does_not_change_board(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    int player[2] = {5, 5};
+    initialize_board(board);
+    CHECK_EQ_INT(score_ai_move(board, 2, 2, player), 18);
+    CHECK_EQ_INT(count_level(board, START_LEVEL), BOARD_SIZE * BOARD_SIZE);
+}
+
+static void test_choose_ai_move_ties_go_to_scan_order(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    int ai[2] = {2, 2};
+    int player[2] = {0, 0};
+    int chosen[2] = {OFF_BOARD, OFF_BOARD};
+    initialize_board(board);
+    CHECK_EQ_INT(score_ai_move(board, 2, 3, player), 19);
+    CHECK_EQ_INT(score_ai_move(board, 3, 2, player), 19);
+    choose_ai_move(board, ai, player, chosen);
+    CHECK_EQ_INT(chosen[ROW], 2);
+    CHECK_EQ_INT(chosen[COL], 3);
+}
+
+static void test_choose_ai_move_prefers_drop_to_zero(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    int ai[2] = {2, 2};
+    int player[2] = {0, 0};
+    int chosen[2] = {OFF_BOARD, OFF_BOARD};
+    initialize_board(board);
+    board[5][1] = 1;
+    CHECK_EQ_INT(score_ai_move(board, 3, 3, player), SCORE_TO_ZERO + 18);
+    CHECK_EQ_INT(score_ai_move(board, 2, 3, player), 19);
+    choose_ai_move(board, ai, player, chosen);
+    CHECK_EQ_INT(chosen[ROW], 3);
+    CHECK_EQ_INT(chosen[COL], 3);
+}
+
+static void test_choose_ai_move_prefers_drop_from_four_over_count(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    int ai[2] = {2, 2};
+    int player[2] = {0, 0};
+    int chosen[2] = {OFF_BOARD, OFF_BOARD};
+    initialize_board(board);
+    board[5][1] = 4;
+    CHECK_EQ_INT(score_ai_move(board, 3, 3, player), SCORE_FROM_FOUR + 18);
+    CHECK_EQ_INT(score_ai_move(board, 2, 3, player), 19);
+    choose_ai_move(board, ai, player, chosen);
+    CHECK_EQ_INT(chosen[ROW], 3);
+    CHECK_EQ_INT(chosen[COL], 3);
+}
+
+static void test_choose_ai_move_zero_beats_four(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    int ai[2] = {2, 2};
+    int player[2] = {0, 0};
+    int chosen[2] = {OFF_BOARD, OFF_BOARD};
+    initialize_board(board);
+    board[0][4] = 1;
+    board[5][5] = 4;
+    CHECK_EQ_INT(score_ai_move(board, 1, 3, player), SCORE_TO_ZERO + 17);
+    CHECK_EQ_INT(score_ai_move(board, 3, 1, player), SCORE_TO_ZERO + 17);
+    CHECK_EQ_INT(score_ai_move(board, 3, 3, player), SCORE_FROM_FOUR + 18);
+    choose_ai_move(board, ai, player, chosen);
+    CHECK_EQ_INT(chosen[ROW], 1);
+    CHECK_EQ_INT(chosen[COL], 3);
+}
+
+static void test_choose_ai_move_only_legal(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    int ai[2] = {0, 0};
+    int player[2] = {0, 1};
+    int chosen[2] = {OFF_BOARD, OFF_BOARD};
+    initialize_board(board);
+    choose_ai_move(board, ai, player, chosen);
+    CHECK(is_on_board(chosen[ROW], chosen[COL]));
+    CHECK(!is_occupied_by(player, chosen[ROW], chosen[COL]));
+    CHECK(is_adjacent(ai[ROW], ai[COL], chosen[ROW], chosen[COL]));
+}
+
+static void test_choose_ai_move_finds_a_move_everywhere(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    initialize_board(board);
+    for (int row = 0; row < BOARD_SIZE; row++) {
+        for (int col = 0; col < BOARD_SIZE; col++) {
+            int ai[2] = {row, col};
+            int player[2] = {row, col == 0 ? 1 : col - 1};
+            int chosen[2] = {OFF_BOARD, OFF_BOARD};
+            choose_ai_move(board, ai, player, chosen);
+            CHECK_EQ_INT(classify_move(ai, chosen[ROW], chosen[COL], player), MOVE_OK);
+        }
+    }
+}
+
+static void test_play_ai_turn_moves_lowers_and_reports(void) {
+    int board[BOARD_SIZE][BOARD_SIZE];
+    int ai[2] = {2, 2};
+    int player[2] = {0, 0};
+    char text[1024] = "";
+    initialize_board(board);
+    capture_stdout_begin();
+    play_ai_turn(board, ai, player);
+    capture_stdout_end(text, sizeof text);
+    CHECK_EQ_INT(ai[ROW], 2);
+    CHECK_EQ_INT(ai[COL], 3);
+    CHECK_EQ_INT(count_level(board, 1), 19);
+    CHECK(strstr(text, "AI moves to (3, 4).\n   1 2 3 4 5 6\n") != NULL);
+    CHECK(strstr(text, "3  1 1 1 A 1 1\n") != NULL);
+    CHECK(strstr(text, "Level-0 spaces (AI): 0\n") != NULL);
+}
+
 int main(void) {
     test_initialize_board_sets_every_space_to_start_level();
     test_count_level_counts_only_matching_spaces();
@@ -590,5 +723,15 @@ int main(void) {
     test_game_result_player_and_ai_wins();
     test_game_result_draw_when_both_reach_ten();
     test_announce_result_lines();
+    test_copy_board_copies_every_space();
+    test_score_ai_move_keys();
+    test_score_ai_move_does_not_change_board();
+    test_choose_ai_move_ties_go_to_scan_order();
+    test_choose_ai_move_prefers_drop_to_zero();
+    test_choose_ai_move_prefers_drop_from_four_over_count();
+    test_choose_ai_move_zero_beats_four();
+    test_choose_ai_move_only_legal();
+    test_choose_ai_move_finds_a_move_everywhere();
+    test_play_ai_turn_moves_lowers_and_reports();
     CHECK_REPORT("test_santorini");
 }
