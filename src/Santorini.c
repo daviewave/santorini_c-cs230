@@ -28,6 +28,10 @@
 #define MOVE_NOT_ADJACENT 2
 #define MOVE_OCCUPIED 3
 
+/* Level change made by a move: the player builds, the AI destroys. */
+#define PLAYER_DELTA 1
+#define AI_DELTA (-1)
+
 /* Outcomes of reading one input line. */
 #define INPUT_END 0
 #define INPUT_OK 1
@@ -37,6 +41,15 @@ static void initialize_board(int board[][BOARD_SIZE]);
 static int count_level(int board[][BOARD_SIZE], int level);
 static int is_occupied_by(const int builder[2], int row, int col);
 static int is_on_board(int row, int col);
+static int is_adjacent(int from_row, int from_col, int to_row, int to_col);
+static int classify_move(const int from[2], int to_row, int to_col, const int other[2]);
+static int clamp_level(int level);
+static void update_ray(int board[][BOARD_SIZE], int row, int col, int row_step, int col_step,
+                       int delta, const int blocker[2]);
+static void update_rays(int board[][BOARD_SIZE], int row, int col, int delta,
+                        const int blocker[2]);
+static void move_builder(int board[][BOARD_SIZE], int builder[2], int to_row, int to_col,
+                         int delta, const int other[2]);
 static char cell_character(int board[][BOARD_SIZE], int row, int col,
                            const int player[2], const int ai[2]);
 static void print_board(int board[][BOARD_SIZE], const int player[2], const int ai[2]);
@@ -50,6 +63,9 @@ static void explain_invalid_move(int reason, int row, int col);
 static int place_typed_start(int player[2], const int typed[2]);
 static int prompt_player_start(int player[2]);
 static void choose_ai_start(const int player[2], int chosen[2]);
+static int apply_typed_move(int board[][BOARD_SIZE], int player[2], const int ai[2],
+                            const int typed[2]);
+static int prompt_player_move(int board[][BOARD_SIZE], int player[2], const int ai[2]);
 static int end_of_input(void);
 
 /* Sets every space of the board to the starting level. */
@@ -82,6 +98,73 @@ static int is_occupied_by(const int builder[2], int row, int col) {
 /* Reports whether (row, col) is inside the 0-based board. */
 static int is_on_board(int row, int col) {
     return row >= 0 && row < BOARD_SIZE && col >= 0 && col < BOARD_SIZE;
+}
+
+/* Reports whether the two spaces are distinct octagonal (king-move) neighbours. */
+static int is_adjacent(int from_row, int from_col, int to_row, int to_col) {
+    int row_distance = abs(to_row - from_row);
+    int col_distance = abs(to_col - from_col);
+    return row_distance <= 1 && col_distance <= 1 && row_distance + col_distance > 0;
+}
+
+/* Judges a move of the builder at from to (to_row, to_col) while the other
+ * builder stands at other. Returns MOVE_OK or the first failing MOVE_* reason. */
+static int classify_move(const int from[2], int to_row, int to_col, const int other[2]) {
+    if (!is_on_board(to_row, to_col)) {
+        return MOVE_OFF_BOARD;
+    }
+    if (!is_adjacent(from[ROW], from[COL], to_row, to_col)) {
+        return MOVE_NOT_ADJACENT;
+    }
+    if (is_occupied_by(other, to_row, to_col)) {
+        return MOVE_OCCUPIED;
+    }
+    return MOVE_OK;
+}
+
+/* Pins a level into the legal range LEVEL_MIN..LEVEL_MAX. */
+static int clamp_level(int level) {
+    if (level < LEVEL_MIN) {
+        return LEVEL_MIN;
+    }
+    if (level > LEVEL_MAX) {
+        return LEVEL_MAX;
+    }
+    return level;
+}
+
+/* Changes by delta every space on one ray out of (row, col), excluding
+ * (row, col) itself, stopping at the board edge or just before the blocker. */
+static void update_ray(int board[][BOARD_SIZE], int row, int col, int row_step, int col_step,
+                       int delta, const int blocker[2]) {
+    int ray_row = row + row_step;
+    int ray_col = col + col_step;
+    while (is_on_board(ray_row, ray_col) && !is_occupied_by(blocker, ray_row, ray_col)) {
+        board[ray_row][ray_col] = clamp_level(board[ray_row][ray_col] + delta);
+        ray_row += row_step;
+        ray_col += col_step;
+    }
+}
+
+/* Applies update_ray in all eight octagonal directions from (row, col). */
+static void update_rays(int board[][BOARD_SIZE], int row, int col, int delta,
+                        const int blocker[2]) {
+    for (int row_step = -1; row_step <= 1; row_step++) {
+        for (int col_step = -1; col_step <= 1; col_step++) {
+            if (row_step != 0 || col_step != 0) {
+                update_ray(board, row, col, row_step, col_step, delta, blocker);
+            }
+        }
+    }
+}
+
+/* Moves the builder to (to_row, to_col) and updates the levels along its rays,
+ * which the other builder may block. */
+static void move_builder(int board[][BOARD_SIZE], int builder[2], int to_row, int to_col,
+                         int delta, const int other[2]) {
+    builder[ROW] = to_row;
+    builder[COL] = to_col;
+    update_rays(board, to_row, to_col, delta, other);
 }
 
 /* Gives the character shown for one space: a builder symbol or the level digit. */
@@ -225,13 +308,51 @@ static void choose_ai_start(const int player[2], int chosen[2]) {
     }
 }
 
+/* Applies the typed 1-based move when it is legal, else explains why not.
+ * Returns 1 when the builder moved. */
+static int apply_typed_move(int board[][BOARD_SIZE], int player[2], const int ai[2],
+                            const int typed[2]) {
+    int row = typed[ROW] - 1;
+    int col = typed[COL] - 1;
+    int reason = classify_move(player, row, col, ai);
+    if (reason != MOVE_OK) {
+        explain_invalid_move(reason, typed[ROW], typed[COL]);
+        return 0;
+    }
+    move_builder(board, player, row, col, PLAYER_DELTA, ai);
+    return 1;
+}
+
+/* Asks for the player's move until a legal one is made, then shows the result.
+ * Returns 0 when the input ends first, else 1. */
+static int prompt_player_move(int board[][BOARD_SIZE], int player[2], const int ai[2]) {
+    int typed[2];
+    int moved = 0;
+    while (!moved) {
+        int status;
+        printf("Your move (row column): ");
+        status = read_coordinates(typed);
+        if (status == INPUT_END) {
+            return 0;
+        }
+        if (status == INPUT_NOT_NUMBERS) {
+            print_number_hint();
+        } else {
+            moved = apply_typed_move(board, player, ai, typed);
+        }
+    }
+    show_state(board, player, ai);
+    return 1;
+}
+
 /* Reports that the input ended before the game did. @return the exit status */
 static int end_of_input(void) {
     printf("\nEnd of input: the game was abandoned.\n");
     return EXIT_SUCCESS;
 }
 
-/* Sets up the board and both builders; the turns arrive in a later task. */
+/* Sets up the board and both builders, then takes the player's moves;
+ * the AI's turns and the end of the game arrive in later tasks. */
 int main(void) {
     int board[BOARD_SIZE][BOARD_SIZE];
     int player[2] = {OFF_BOARD, OFF_BOARD};
@@ -246,5 +367,7 @@ int main(void) {
     choose_ai_start(player, ai);
     printf("AI starts at (%d, %d).\n", ai[ROW] + 1, ai[COL] + 1);
     show_state(board, player, ai);
-    return EXIT_SUCCESS;
+    while (prompt_player_move(board, player, ai)) {
+    }
+    return end_of_input();
 }
