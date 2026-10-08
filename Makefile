@@ -78,7 +78,9 @@ run: all
 # Makefile), then prove that it builds with the course's own flags.
 define DIST_MAKEFILE
 # Minimal flat Makefile for the Santorini submission bundle.
-CC ?= gcc
+ifeq ($$(origin CC),default)
+CC := gcc
+endif
 CFLAGS ?= -std=c99 -Wall -Wextra -O2
 
 Santorini: Santorini.c
