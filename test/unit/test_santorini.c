@@ -300,7 +300,7 @@ static void test_classify_move_spec_example(void) {
     CHECK_EQ_INT(classify_move(player, 0, 3, ai), MOVE_OK);
     CHECK_EQ_INT(classify_move(player, 2, 3, ai), MOVE_OK);
     CHECK_EQ_INT(classify_move(player, 0, 2, ai), MOVE_OCCUPIED);
-    CHECK_EQ_INT(classify_move(player, 1, 2, ai), MOVE_NOT_ADJACENT);
+    CHECK_EQ_INT(classify_move(player, 1, 2, ai), MOVE_SAME_SPACE);
     CHECK_EQ_INT(classify_move(player, 4, 5, ai), MOVE_NOT_ADJACENT);
 }
 
@@ -446,15 +446,18 @@ static void test_apply_typed_move_moves_or_explains(void) {
     int ai[2] = {0, 2};
     int occupied[2] = {1, 3};
     int far_away[2] = {5, 6};
+    int same[2] = {1, 2};
     int good[2] = {2, 3};
-    char text[256] = "";
+    char text[512] = "";
     initialize_board(board);
     capture_stdout_begin();
     CHECK_EQ_INT(apply_typed_move(board, player, ai, occupied), 0);
     CHECK_EQ_INT(apply_typed_move(board, player, ai, far_away), 0);
+    CHECK_EQ_INT(apply_typed_move(board, player, ai, same), 0);
     capture_stdout_end(text, sizeof text);
     CHECK(strstr(text, "(1, 3) is occupied") != NULL);
     CHECK(strstr(text, "(5, 6) is not adjacent") != NULL);
+    CHECK(strstr(text, "already on (1, 2) and must move") != NULL);
     CHECK_EQ_INT(player[ROW], 0);
     CHECK_EQ_INT(apply_typed_move(board, player, ai, good), 1);
     CHECK_EQ_INT(player[ROW], 1);

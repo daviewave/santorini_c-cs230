@@ -27,6 +27,7 @@
 #define MOVE_OFF_BOARD 1
 #define MOVE_NOT_ADJACENT 2
 #define MOVE_OCCUPIED 3
+#define MOVE_SAME_SPACE 4
 
 /* Level change made by a move: the player builds, the AI destroys. */
 #define PLAYER_DELTA 1
@@ -204,6 +205,9 @@ static int classify_move(const int from[2], int to_row, int to_col, const int ot
     if (!is_on_board(to_row, to_col)) {
         return MOVE_OFF_BOARD;
     }
+    if (is_occupied_by(from, to_row, to_col)) {
+        return MOVE_SAME_SPACE;
+    }
     if (!is_adjacent(from[ROW], from[COL], to_row, to_col)) {
         return MOVE_NOT_ADJACENT;
     }
@@ -344,6 +348,9 @@ static void explain_invalid_move(int reason, int row, int col) {
     case MOVE_OFF_BOARD:
         printf("Invalid move: (%d, %d) is off the board. Rows and columns run 1 to %d.\n",
                row, col, BOARD_SIZE);
+        break;
+    case MOVE_SAME_SPACE:
+        printf("Invalid move: your builder is already on (%d, %d) and must move.\n", row, col);
         break;
     case MOVE_NOT_ADJACENT:
         printf("Invalid move: (%d, %d) is not adjacent to your builder.\n", row, col);

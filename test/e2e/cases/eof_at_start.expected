@@ -1,0 +1,15 @@
+Santorini (230 version). You are P, the AI is A.
+Moving raises (you) or lowers (AI) every space on the eight lines from the new space.
+You win with 10 spaces at level 4; the AI wins with 10 spaces at level 0.
+
+   1 2 3 4 5 6
+1  2 2 2 2 2 2
+2  2 2 2 2 2 2
+3  2 2 2 2 2 2
+4  2 2 2 2 2 2
+5  2 2 2 2 2 2
+6  2 2 2 2 2 2
+Level-4 spaces (Player): 0   Level-0 spaces (AI): 0
+
+Choose the starting space for your builder (row column): 
+End of input: the game was abandoned.
