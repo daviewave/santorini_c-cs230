@@ -46,6 +46,7 @@ every commit, each commit building, analysing and testing clean:
 - [x] `refactor: group functions by concern` (pure reorder into section banners)
 - [x] Task 9 (`test: complete-game transcripts and result assertions for both outcomes`)
 - [x] Task 10 README and docs
+- [x] Independent review, then `fix: review follow-ups` (no `abs()`, `You move to` line, explicit switch labels, named score sentinel)
 
 Two expected values in the plan's AI tests were wrong and were corrected
 against hand-traced rays before the implementation was touched: the player's
@@ -55,11 +56,11 @@ planned (right, else left).
 
 ## Review Focus
 
-1. A ray blocked by the other builder must stop there and the landing space must never change level (spec example P (1,2)->(2,3) with A at (1,3)). Pinned in Task 4 (`test_spec_example_after_move_to_2_3`, `test_ray_stops_before_blocker`, `test_landing_space_unchanged`).
+1. A ray blocked by the other builder must stop there and the landing space must never change level (spec example P (1,2)->(2,3) with A at (1,3)). Pinned in Task 4 (`test_spec_example_after_move_to_2_3`, `test_ray_stops_before_blocker`, `test_blocker_shields_rest_of_row_and_landing_unchanged`).
 2. Letters or a partial line (`a b`, `2 x`) must reprompt, not loop forever or consume the next line. Pinned in Task 7 (`test_read_coordinates_rejects_letters`, `test_read_coordinates_partial_line_does_not_leak`) and Task 8 (`invalid_inputs` case).
 3. EOF on stdin at the first prompt or mid-game must print a message and exit 0 without printing garbage coordinates. Pinned in Task 8 (`eof_at_start`, `eof_mid_game` cases).
 4. Coordinates `0`, `7` and negative numbers must be reported as off the board, not index the array. Pinned in Task 3 (`test_classify_move_off_board`) and Task 8 (`invalid_inputs` case).
-5. The AI must never move onto the player or off the board, and must always find a move (every square has at least two free neighbours). Pinned in Task 6 (`test_choose_ai_move_only_legal`, `test_choose_ai_move_corner`).
+5. The AI must never move onto the player or off the board, and must always find a move (every square has at least two free neighbours). Pinned in Task 6 (`test_choose_ai_move_only_legal`, `test_choose_ai_move_finds_a_move_everywhere`).
 
 ---
 

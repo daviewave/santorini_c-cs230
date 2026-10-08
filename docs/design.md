@@ -119,22 +119,25 @@ end-to-end suite replay that example byte for byte.
 
 ### 3.5 Input
 
-`read_coordinates(out)` calls `scanf("%d %d", &row, &col)` once and then
+`read_coordinates(typed)` calls `scanf("%d %d", &row, &col)` once and then
 always discards the rest of the line with a `getchar` loop, so each prompt
 consumes exactly one line and a trailing token cannot leak into the next
-prompt. Return values:
+prompt. It returns one of three codes:
 
-- `2` from `scanf`: both numbers read, returns 1 with the raw 1-based values.
-- `0` or `1`: the offending token is still in the stream; the line drain
-  removes it; returns 1 with `out` set to an off-board sentinel so the caller
-  reports the input as invalid and reprompts. This is what makes letters
+- `INPUT_OK`: both numbers were read; `typed` holds them as typed (1-based).
+- `INPUT_NOT_NUMBERS`: `scanf` returned 0 or 1; the offending token was still
+  in the stream and the line drain removed it; `typed` is left untouched and
+  the caller prints the number hint and reprompts. This is what makes letters
   safe instead of an infinite loop.
-- `EOF`: returns 0. The caller prints a message and the program exits
-  cleanly with `EXIT_SUCCESS`; no board state is corrupted.
+- `INPUT_END`: `scanf` returned `EOF`. The caller prints a message and the
+  program exits with `EXIT_SUCCESS`; no board state is touched.
 
-Range checking (1..6) happens in `classify_move` via `is_on_board` after the
-1-based to 0-based conversion, so a value like 0 or 7 reaches the same
-"off the board" message as any other bad coordinate.
+Range checking (1..6) happens after the 1-based to 0-based conversion in
+`place_typed_start` (via `is_on_board`) and `apply_typed_move` (via
+`classify_move`), so 0, 7 and negative numbers reach the same "off the
+board" message as any other bad coordinate. Integer overflow in `%d` is
+undefined behaviour in C99; the rubric promises two numbers, and in practice
+glibc wraps and the range check rejects the result.
 
 ### 3.6 Output
 
@@ -154,7 +157,8 @@ is the "recorded points" the rubric mentions. The last line of a game is one
 of `Player wins!`, `AI wins!`, `Draw!`.
 
 The board is printed at start, after the starting positions, after every
-player move and after every AI move; the final board precedes the result line.
+player move (preceded by `You move to (r, c).`) and after every AI move
+(preceded by `AI moves to (r, c).`); the final board precedes the result line.
 
 ### 3.7 The spec's example sequence
 
@@ -176,7 +180,7 @@ that agrees.
 | Function | Pure? | Responsibility |
 | --- | --- | --- |
 | `initialize_board` | writes board | every space to `START_LEVEL` |
-| `is_on_board`, `is_adjacent`, `is_occupied_by` | yes | geometry predicates |
+| `is_on_board`, `distance`, `is_adjacent`, `is_occupied_by` | yes | geometry predicates |
 | `copy_board` | writes destination | the AI's trial board |
 | `classify_move` | yes | legality with a reason code |
 | `clamp_level` | yes | pin to 0..4 |
@@ -184,7 +188,7 @@ that agrees.
 | `move_builder` | writes board and position | sets the position, then `update_rays` |
 | `count_level`, `game_result` | yes | section 3.3 |
 | `score_ai_move`, `choose_ai_move`, `choose_ai_start` | yes (fills `out[2]`) | section 3.4 |
-| `cell_character`, `print_board`, `print_score` | output | section 3.6 |
+| `cell_character`, `print_board`, `print_score`, `show_state` | output | section 3.6 |
 | `discard_rest_of_line`, `read_coordinates` | input | section 3.5 |
 | `place_typed_start`, `apply_typed_move` | writes position (and board) | one attempt: validate, apply or explain |
 | `prompt_player_start`, `prompt_player_move` | input + output | reprompt loops; return 0 on EOF |

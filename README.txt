@@ -45,8 +45,9 @@ Spec requirements
                                               in main; initialize_board
   Takes "row column" as user input .......... read_coordinates (scanf "%d %d"),
                                               prompt_player_start, prompt_player_move
-  One or more functions are used ............ 30 functions, every one declared
-                                              with a prototype at the top of the file
+  One or more functions are used ............ 32 functions: main plus 31
+                                              static helpers, each declared
+                                              with a prototype at the top
   Arrays are passed to functions ............ every board function takes
                                               int board[][BOARD_SIZE]; builder
                                               positions are int[2] parameters
@@ -156,12 +157,15 @@ is checked after every move. The branch exists because the rubric asks for
 
 Spec example. With the player starting at (1,2) and moving to (2,3), the
 program prints the spec's board exactly, and the AI's first reply reproduces
-the first board of the spec's "example of the game playing". In the spec's
-second example board the space the player just left shows 4 where this
-program shows 3; that figure is only consistent with raising the landing
-space on the first move, which the spec's text forbids ("the level of the
-octagon that builders move onto does not increase/decrease"), so the text
-rule is followed.
+the first board of the spec's "example of the game playing". The spec's
+blocking example (P back to (1,2) with A on (1,3)) also agrees with this
+program: (1,3)..(1,6) stay untouched and the landing space keeps its level.
+In the spec's second "game playing" board the space the player just left
+shows 4 where this program shows 3; that figure is only consistent with
+raising the landing space on the first move, which the spec's text forbids
+("the level of the octagon that builders move onto does not
+increase/decrease"), so the text rule is followed and the program diverges
+from that figure from there on.
 
 Input. read_coordinates calls scanf("%d %d") once and then discards the rest
 of the line, so each prompt consumes one line, trailing words are ignored,
@@ -169,7 +173,7 @@ and a line like "a b" is reported and re-prompted instead of looping forever.
 EOF at any prompt prints "End of input: the game was abandoned." and exits 0.
 
 Tests. test/unit/test_santorini.c includes Santorini.c directly and checks
-every function (380 checks), including the spec's worked example board and
+every function (385 checks), including the spec's worked example board and
 the blocking rule. test/e2e/cases/ holds stdin scripts with golden transcripts
 for the spec example, invalid inputs, end of input, a complete game the
 player wins and a complete game the AI wins. Run them with make test.
