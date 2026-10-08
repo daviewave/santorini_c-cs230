@@ -1,2 +1,21 @@
+# Build outputs: objects, binaries, dependency files, test binaries
+build/
+# Flat Gradescope bundle produced by `make dist`
+dist/
+# Stray binaries and generated output
+santorini
+Santorini
+test/e2e/actual/
+*.o
+*.d
+output.txt
+# Core dumps (valgrind style and kernel style)
 vgcore*
+core
+core.*
+# Editor and tooling state
+*.swp
+*~
+.vscode/
+.idea/
 settings.json*
